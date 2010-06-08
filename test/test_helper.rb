@@ -1,0 +1,6 @@
+require 'rubygems'
+gem 'test-unit'
+require 'test/unit'
+require 'active_support'
+require 'active_support/test_case'
+require 'filter_io'
