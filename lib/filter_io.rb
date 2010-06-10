@@ -57,7 +57,10 @@ class FilterIO
     nil
   end
   
-  def read(length=nil)
+  def read(length = nil)
+    
+    raise ArgumentError if length && length < 0
+    return '' if length == 0
     
     # fill the buffer up to the fill level (or whole input if length is nil)
     while !@io.eof? && (length.nil? || length > @buffer.size)

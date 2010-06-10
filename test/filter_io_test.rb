@@ -107,6 +107,29 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_true io.eof?
   end
   
+  test "read zero before eof" do
+    io = FilterIO.new(StringIO.new('foo'))
+    assert_equal '', io.read(0)
+    assert_equal 0, io.pos
+    assert_false io.eof?
+  end
+  
+  test "read zero at eof" do
+    io = FilterIO.new(StringIO.new(''))
+    assert_equal '', io.read(0)
+    assert_equal 0, io.pos
+    assert_true io.eof?
+  end
+  
+  test "read negative" do
+    io = FilterIO.new(StringIO.new('foo'))
+    assert_equal 'fo', io.read(2)
+    assert_raise ArgumentError do
+      io.read(-1)
+    end
+    assert_equal 2, io.pos
+  end
+  
   test "simple block" do
     input = 'foo bar'
     expected = 'FOO BAR'
