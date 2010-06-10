@@ -106,6 +106,18 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal expected, io.read
   end
   
+  test "block bof and eof" do
+    input = "Test String"
+    expected = ">>>*Test** Str**ing*<<<"
+    io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
+      data = "*#{data}*"
+      data = ">>>#{data}" if state.bof?
+      data = "#{data}<<<" if state.eof?
+      data
+    end
+    assert_equal expected, io.read
+  end
+  
   test "Symbol#to_proc" do
     input = 'foo bar'
     expected = 'FOO BAR'
