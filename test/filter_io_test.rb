@@ -75,6 +75,16 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal_reference_io('Résume') { |io| io.read(2) }
   end
   
+  test "unicode in block" do
+    input = 'Résumé Test'
+    expected = 'résumé test'
+    [2, nil].each do |block_size|
+      io = FilterIO.new(StringIO.new(input), :block_size => block_size) { |data| data.downcase }
+      actual = io.read
+      assert_equal expected, actual
+    end
+  end
+  
   test "read" do
     input = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
     io_reference = StringIO.new(input)

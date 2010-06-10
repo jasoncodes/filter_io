@@ -135,12 +135,25 @@ class FilterIO
   end
   
   def process_data(data)
+    
     if data && @block
+      
+      if data.respond_to? :encoding
+        org_encoding = data.encoding
+        data.force_encoding @io.external_encoding
+        unless data.valid_encoding?
+          data.force_encoding org_encoding
+          raise NeedMoreData unless @io.eof?
+        end
+      end
+      
       state = BlockState.new @io.pos == data.length, @io.eof?
       args = [data, state]
       args = args.first(@block.arity > 0 ? @block.arity : 1)
       data = @block.call(*args)
+      
     end
+    
     data
   end
   
