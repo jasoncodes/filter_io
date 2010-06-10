@@ -160,6 +160,29 @@ class FilterIO
     
   end
   
+  def readline(sep_string = $/)
+    gets(sep_string) or raise EOFError, 'end of file reached'
+  end
+  
+  def each_line(sep_string = $/)
+    unless block_given?
+      klass = defined?(Enumerator) ? Enumerator : Enumerable::Enumerator
+      return klass.new(self, :each_line, sep_string)
+    end
+    while line = gets(sep_string)
+      yield line
+    end
+    self
+  end
+  alias :each :each_line
+  alias :lines :each_line
+  
+  def readlines(sep_string = $/)
+    lines = []
+    each_line(sep_string) { |line| lines << line }
+    lines
+  end
+  
   protected
   
   def empty_string

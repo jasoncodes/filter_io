@@ -354,4 +354,43 @@ class FilterIOTest < ActiveSupport::TestCase
     end
   end
   
+  test "readline" do
+    [
+      "foo\nbar\n",
+      "foo\nbar\nbaz"
+    ].each do |input|
+      assert_equal_reference_io(input) { |io| io.readline }
+      assert_equal_reference_io(input) { |io| io.readline("o") }
+    end
+  end
+  
+  test "readlines" do
+    [
+      "foo\nbar\n",
+      "foo\nbar\nbaz"
+    ].each do |input|
+      assert_equal_reference_io(input) { |io| io.readlines }
+      assert_equal_reference_io(input) { |io| io.readlines("o") }
+    end
+  end
+  
+  test "lines with block" do
+    io = FilterIO.new(StringIO.new("foo\nbar\nbaz"))
+    expected = [ ["foo\n", "bar\n"], ["baz", nil] ]
+    actual = []
+    retval = io.lines do |line|
+      actual << [line, io.gets]
+    end
+    assert_equal io, retval
+    assert_equal expected, actual
+  end
+  
+  test "lines enumerator" do
+    io = FilterIO.new(StringIO.new("foo\nbar\nbaz"))
+    e = io.lines
+    expected = [ ["foo\n", "bar\n"], ["baz", nil] ]
+    actual = e.map { |line| [line, io.gets] }
+    assert_equal expected, actual
+  end
+  
 end
