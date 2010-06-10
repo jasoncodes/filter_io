@@ -5,6 +5,41 @@ require 'stringio'
 
 class FilterIOTest < ActiveSupport::TestCase
   
+  def assert_equal_reference_io(input)
+    
+    expected_io = StringIO.new(input)
+    actual_io = FilterIO.new(StringIO.new(input))
+    
+    results = [expected_io, actual_io].map do |io|
+      results = []
+      errors = []
+      positions = []
+      
+      # call the block repeatedly until we get to EOF
+      # and once more at the end to check what happens at EOF
+      one_more_time = [true]
+      while !io.eof? || one_more_time.pop
+        begin
+          results << yield(io)
+          errors << nil
+        rescue Exception => e
+          results << nil
+          errors << [e.class, e.message]
+        end
+        positions << io.pos
+        raise 'Too many iterations' if results.size > 100
+      end
+      
+      [results, errors, positions]
+    end
+    
+    # compare the filtered output against the reference
+    results[0].zip(results[1]).each do |expected, actual|
+      assert_equal expected, actual
+    end
+    
+  end
+  
   test "empty source" do
     io = FilterIO.new(StringIO.new(''))
     assert_true io.bof?
@@ -33,31 +68,11 @@ class FilterIOTest < ActiveSupport::TestCase
   end
   
   test "unicode readchar" do
-    
-    str = 'Résumé'
-    expected = StringIO.new(str)
-    actual = FilterIO.new(StringIO.new(str))
-    
-    until expected.eof?
-      assert_equal expected.readchar, actual.readchar
-      assert_equal expected.pos, actual.pos
-    end
-    assert_equal expected.eof?, actual.eof?
-    
+    assert_equal_reference_io('Résume') { |io| io.readchar }
   end
   
   test "unicode read" do
-    
-    str = 'Résumé'
-    expected = StringIO.new(str)
-    actual = FilterIO.new(StringIO.new(str))
-    
-    until expected.eof?
-      assert_equal expected.read(2), actual.read(2)
-      assert_equal expected.pos, actual.pos
-    end
-    assert_equal expected.eof?, actual.eof?
-    
+    assert_equal_reference_io('Résume') { |io| io.read(2) }
   end
   
   test "read" do
@@ -222,13 +237,7 @@ class FilterIOTest < ActiveSupport::TestCase
   end
   
   test "getc" do
-    input = 'foo'
-    expected_io = StringIO.new(input)
-    expected = (0..input.size).map { expected_io.getc }
-    actual_io = FilterIO.new(StringIO.new(input))
-    actual = (0..input.size).map { actual_io.getc }
-    assert_equal input.size+1, actual.size
-    assert_equal expected, actual
+    assert_equal_reference_io('foo') { |io| io.getc }
   end
   
 end
