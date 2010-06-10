@@ -132,7 +132,8 @@ class FilterIO
     if data && @block
       state = BlockState.new @io.pos == data.length, @io.eof?
       args = [data, state]
-      data = @block.call(*args.first(@block.arity))
+      args = args.first(@block.arity > 0 ? @block.arity : 1)
+      data = @block.call(*args)
     end
     data
   end

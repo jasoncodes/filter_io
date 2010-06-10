@@ -91,6 +91,13 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal expected, io.read
   end
   
+  test "Symbol#to_proc" do
+    input = 'foo bar'
+    expected = 'FOO BAR'
+    io = FilterIO.new StringIO.new(input), &:upcase
+    assert_equal expected, io.read
+  end
+  
   test "block size" do
     [1,4,7,9,13,30].each do |block_size|
       input = ('A'..'Z').to_a.join
