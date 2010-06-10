@@ -43,7 +43,7 @@ class FilterIO
     if @io.respond_to? :external_encoding
       data = empty_string
       begin
-        data += read(1).force_encoding(@io.external_encoding)
+        data << read(1).force_encoding(@io.external_encoding)
       end until data.valid_encoding? or @io.eof?
       data
     else
@@ -61,10 +61,10 @@ class FilterIO
         data = process_data data
       rescue NeedMoreData
         raise EOFError, 'end of file reached' if eof?
-        data += @io.read(block_size)
+        data << @io.read(block_size)
         retry
       end
-      @buffer += data
+      @buffer << data
     end
     
     # we now have all the data in the buffer that we need (or can get if EOF)
