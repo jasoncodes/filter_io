@@ -285,4 +285,73 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal_reference_io('foo') { |io| io.getc }
   end
   
+  test "gets default" do
+    [
+      "",
+      "x",
+      "foo bar",
+      "foo\nbar",
+      "foo\nbar\nbaz\n"
+    ].each do |input|
+      assert_equal_reference_io(input) { |io| io.gets }
+    end
+  end
+  
+  test "gets all" do
+    [
+      "",
+      "x",
+      "foo bar",
+      "foo\nbar",
+      "foo\nbar\nbaz\n"
+    ].each do |input|
+      assert_equal_reference_io(input) { |io| io.gets(nil) }
+    end
+  end
+  
+  test "gets separator" do
+    [
+      "",
+      "x",
+      "foo\nbar\rbaz\n",
+      "abc\rdef\rghi\r",
+      "abcxyz",
+    ].each do |input|
+      ["\r", "x"].each do |sep_string|
+        assert_equal_reference_io(input) { |io| io.gets(sep_string) }
+      end
+    end
+  end
+  
+  test "gets 2 char separator" do
+    ["o", "oo"].each do |sep_string|
+      assert_equal_reference_io("foobarhelloworld") { |io| io.gets(sep_string) }
+    end
+  end
+  
+  test "gets paragraph" do
+    {
+      "" => [],
+      "x" => ['x'],
+      "foo bar" => ["foo bar"],
+      "foo bar\n" => ["foo bar\n"],
+      "foo bar\n\n" => ["foo bar\n\n"],
+      "foo bar\n\n\n" => ["foo bar\n\n"],
+      "foo bar\nbaz" => ["foo bar\nbaz"],
+      "foo bar\n\nbaz" => ["foo bar\n\n", "baz"],
+      "foo bar\n\n\nbaz" => ["foo bar\n\n", "baz"],
+      "foo bar\n\nbaz\n" => ["foo bar\n\n", "baz\n"],
+      "foo bar\n\nbaz\n\n" => ["foo bar\n\n", "baz\n\n"],
+      "foo bar\n\nbaz\n\n\n" => ["foo bar\n\n", "baz\n\n"],
+      "\n\n\nfoo bar\n\nbaz\n\n\nabc\ndef" => ["foo bar\n\n", "baz\n\n", "abc\ndef"],
+    }.each do |input, expected|
+      io = FilterIO.new(StringIO.new(input))
+      actual = []
+      while para = io.gets('')
+        actual << para
+      end
+      assert_equal expected, actual
+    end
+  end
+  
 end

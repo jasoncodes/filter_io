@@ -120,6 +120,46 @@ class FilterIO
     @buffer = char + @buffer
   end
   
+  def gets(sep_string = $/)
+    
+    return nil if eof?
+    return read if sep_string.nil?
+    
+    paragraph_mode = sep_string == ''
+    sep_string = "\n\n" if paragraph_mode
+    sep_string = sep_string.to_s unless sep_string.is_a? String
+    
+    if paragraph_mode
+      # consume any leading newlines
+      char = getc
+      char = getc while char && char.ord == 10
+      if char
+        ungetc char # push the first non-newline back onto the buffer
+      else
+        return nil # nothing left except newlines, bail out
+      end
+    end
+    
+    # fill the buffer until it contains the separator sequence
+    until @io.eof? or @buffer.index(sep_string)
+      buffer_data
+    end
+    
+    # calculate how much of the buffer to return
+    length = if idx = @buffer.index(sep_string)
+      # we found the separator, include it in our output
+      length = idx + sep_string.size
+    else
+      # no separator found (must be EOF). return everything we've got
+      length = @buffer.size
+    end
+    
+    # increment the position and return the buffer fragment
+    @pos += length
+    @buffer.slice!(0, length)
+    
+  end
+  
   protected
   
   def empty_string
