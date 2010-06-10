@@ -221,4 +221,14 @@ class FilterIOTest < ActiveSupport::TestCase
     end
   end
   
+  test "getc" do
+    input = 'foo'
+    expected_io = StringIO.new(input)
+    expected = (0..input.size).map { expected_io.getc }
+    actual_io = FilterIO.new(StringIO.new(input))
+    actual = (0..input.size).map { actual_io.getc }
+    assert_equal input.size+1, actual.size
+    assert_equal expected, actual
+  end
+  
 end

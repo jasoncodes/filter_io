@@ -51,6 +51,12 @@ class FilterIO
     end
   end
   
+  def getc
+    readchar
+  rescue EOFError
+    nil
+  end
+  
   def read(length=nil)
     
     # fill the buffer up to the fill level (or whole input if length is nil)
