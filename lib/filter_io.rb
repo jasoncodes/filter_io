@@ -61,16 +61,7 @@ class FilterIO
     
     # fill the buffer up to the fill level (or whole input if length is nil)
     while !@io.eof? && (length.nil? || length > @buffer.size)
-      block_size = @options[:block_size] || length || DEFAULT_BLOCK_SIZE
-      data = @io.read(block_size) or break
-      begin
-        data = process_data data
-      rescue NeedMoreData
-        raise EOFError, 'end of file reached' if eof?
-        data << @io.read(block_size)
-        retry
-      end
-      @buffer << data
+      buffer_data @options[:block_size] || length
     end
     
     # we now have all the data in the buffer that we need (or can get if EOF)
@@ -132,6 +123,19 @@ class FilterIO
     str = String.new
     str.force_encoding @io.external_encoding if @io.respond_to?(:external_encoding)
     str
+  end
+  
+  def buffer_data(block_size = nil)
+    block_size ||= DEFAULT_BLOCK_SIZE
+    data = @io.read(block_size) or return
+    begin
+      data = process_data data
+    rescue NeedMoreData
+      raise EOFError, 'end of file reached' if eof?
+      data << @io.read(block_size)
+      retry
+    end
+    @buffer << data
   end
   
   def process_data(data)
