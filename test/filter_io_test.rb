@@ -75,6 +75,10 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal_reference_io('Résume') { |io| io.read(2) }
   end
   
+  test "unicode gets" do
+    assert_equal_reference_io("über\nrésumé") { |io| io.gets }
+  end
+  
   test "unicode in block" do
     input = 'Résumé Test'
     expected = 'résumé test'

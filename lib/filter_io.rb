@@ -156,8 +156,10 @@ class FilterIO
     
     # increment the position and return the buffer fragment
     @pos += length
-    @buffer.slice!(0, length)
+    data = @buffer.slice!(0, length)
+    data = data.force_encoding(@io.external_encoding) if @io.respond_to? :external_encoding
     
+    data
   end
   
   def readline(sep_string = $/)
