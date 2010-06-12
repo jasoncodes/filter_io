@@ -393,4 +393,14 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal expected, actual
   end
   
+  test "need more data at eof" do
+    input = "foo"
+    io = FilterIO.new(StringIO.new(input), :block_size => 2) do |data|
+      raise FilterIO::NeedMoreData
+    end
+    assert_raise EOFError do
+      io.readline
+    end
+  end
+  
 end
