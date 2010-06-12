@@ -393,6 +393,75 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal expected, actual
   end
   
+  test "seek set" do
+    
+    io = FilterIO.new(StringIO.new("abcdef"))
+    
+    # beginning
+    assert_equal 'a', io.readchar.chr
+    assert_equal 1, io.pos
+    io.seek 0, IO::SEEK_SET
+    assert_equal 'a', io.readchar.chr
+    assert_equal 1, io.pos
+    
+    # same position
+    io.seek 1, IO::SEEK_SET
+    assert_equal 'b', io.readchar.chr
+    assert_equal 2, io.pos
+    
+    # backwards fail
+    assert_raise Errno::EINVAL do
+      io.seek 1, IO::SEEK_SET
+    end
+    assert_equal 'c', io.readchar.chr
+    assert_equal 3, io.pos
+    
+  end
+    
+  test "seek current" do
+    
+    io = FilterIO.new(StringIO.new("abcdef"))
+    
+    # same pos
+    assert_equal 'ab', io.read(2)
+    assert_equal 2, io.pos
+    io.seek 0, IO::SEEK_CUR
+    assert_equal 2, io.pos
+    
+    # backwards fail
+    assert_equal 'c', io.read(1)
+    assert_equal 3, io.pos
+    assert_raise Errno::EINVAL do
+      io.seek -1, IO::SEEK_CUR
+    end
+    assert_equal 3, io.pos
+    
+    # forwards fail
+    assert_equal 3, io.pos
+    assert_raise Errno::EINVAL do
+      io.seek 2, IO::SEEK_CUR
+    end
+    assert_equal 3, io.pos
+    
+    # beginning
+    io.seek -io.pos, IO::SEEK_CUR
+    assert_equal 0, io.pos
+    
+  end
+  
+  test "seek end" do
+    io = FilterIO.new(StringIO.new("abcdef"))
+    assert_raise Errno::EINVAL do
+      io.seek 0, IO::SEEK_END
+    end
+    assert_raise Errno::EINVAL do
+      io.seek 6, IO::SEEK_END
+    end
+    assert_raise Errno::EINVAL do
+      io.seek -6, IO::SEEK_END
+    end
+  end
+  
   test "need more data at eof" do
     input = "foo"
     io = FilterIO.new(StringIO.new(input), :block_size => 2) do |data|
