@@ -23,6 +23,7 @@ class FilterIO
     @block = block
     @pos = 0
     @buffer = empty_string
+    @buffer_raw = empty_string
     @options.assert_valid_keys :block_size
   end
   
@@ -35,7 +36,11 @@ class FilterIO
   end
   
   def eof?
-    @buffer.empty? && @io.eof?
+    @buffer.empty? && source_eof?
+  end
+  
+  def source_eof?
+    @buffer_raw.empty? && @io.eof?
   end
   
   def readchar
@@ -44,7 +49,7 @@ class FilterIO
       data = empty_string
       begin
         data << read(1).force_encoding(@io.external_encoding)
-      end until data.valid_encoding? or @io.eof?
+      end until data.valid_encoding? or source_eof?
       data
     else
       read(1).ord
@@ -63,7 +68,7 @@ class FilterIO
     return '' if length == 0
     
     # fill the buffer up to the fill level (or whole input if length is nil)
-    while !@io.eof? && (length.nil? || length > @buffer.size)
+    while !source_eof? && (length.nil? || length > @buffer.size)
       buffer_data @options[:block_size] || length
     end
     
@@ -74,7 +79,7 @@ class FilterIO
       length = @buffer.size if length.nil? or length > @buffer.size
       @pos += length
       @buffer.slice!(0, length)
-    when @io.eof?
+    when source_eof?
       # end of file, nothing in the buffer to return
       length.nil? ? empty_string : nil
     else
@@ -107,6 +112,7 @@ class FilterIO
       @io.rewind
       @pos = 0
       @buffer = empty_string
+      @buffer_raw = empty_string
     else
       raise Errno::EINVAL, 'Random seek not supported'
     end
@@ -141,7 +147,7 @@ class FilterIO
     end
     
     # fill the buffer until it contains the separator sequence
-    until @io.eof? or @buffer.index(sep_string)
+    until source_eof? or @buffer.index(sep_string)
       buffer_data
     end
     
@@ -195,7 +201,11 @@ class FilterIO
   
   def buffer_data(block_size = nil)
     block_size ||= DEFAULT_BLOCK_SIZE
-    data = @io.read(block_size) or return
+    data = unless @buffer_raw.empty?
+     @buffer_raw.slice! 0, @buffer_raw.size
+    else
+     @io.read(block_size) or return
+    end
     begin
       data = process_data data
     rescue NeedMoreData
@@ -203,7 +213,10 @@ class FilterIO
       data << @io.read(block_size)
       retry
     end
-    @buffer << data
+    data = [data] unless data.is_a? Array
+    raise 'Block must have 1 or 2 values' unless data.size <= 2
+    @buffer << data[0]
+    @buffer_raw = data[1] if data[1]
   end
   
   def process_data(data)
@@ -215,11 +228,11 @@ class FilterIO
         data.force_encoding @io.external_encoding
         unless data.valid_encoding?
           data.force_encoding org_encoding
-          raise NeedMoreData unless @io.eof?
+          raise NeedMoreData unless source_eof?
         end
       end
       
-      state = BlockState.new @io.pos == data.length, @io.eof?
+      state = BlockState.new @io.pos == data.length, source_eof?
       args = [data, state]
       args = args.first(@block.arity > 0 ? @block.arity : 1)
       data = @block.call(*args)

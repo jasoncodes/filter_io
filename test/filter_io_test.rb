@@ -476,4 +476,23 @@ class FilterIOTest < ActiveSupport::TestCase
     end
   end
   
+  test "unget via block" do
+    # get consecutive unique characters from a feed
+    # this is similar to uniq(1) and STL's unique_copy
+    input = "122234435"
+    expected = "123435"
+    (1..5).each do |block_size|
+      io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data, state|
+        # grab all of the same character
+        data =~ /\A(.)\1*(?!\1)/ or raise 'No data'
+        # if there was nothing after it and we aren't at EOF...
+        # ...grab more data to make sure we're at the end
+        raise FilterIO::NeedMoreData if $'.empty? && !state.eof?
+        # return the matched character as data and re-buffer the rest
+        [$&[0], $']
+      end
+      assert_equal expected, io.read
+    end
+  end
+  
 end
