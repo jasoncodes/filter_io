@@ -200,12 +200,15 @@ class FilterIO
   end
   
   def buffer_data(block_size = nil)
+    
     block_size ||= DEFAULT_BLOCK_SIZE
+    
     data = unless @buffer_raw.empty?
      @buffer_raw.slice! 0, @buffer_raw.size
     else
      @io.read(block_size) or return
     end
+    
     begin
       data = process_data data
     rescue NeedMoreData
@@ -213,10 +216,12 @@ class FilterIO
       data << @io.read(block_size)
       retry
     end
+    
     data = [data] unless data.is_a? Array
     raise 'Block must have 1 or 2 values' unless data.size <= 2
     @buffer << data[0]
     @buffer_raw = data[1] if data[1]
+    
   end
   
   def process_data(data)
