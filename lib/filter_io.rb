@@ -23,7 +23,7 @@ class FilterIO
     @block = block
     @pos = 0
     @buffer = empty_string
-    @buffer_raw = empty_string
+    @buffer_raw = empty_string_raw
     @options.assert_valid_keys :block_size
   end
   
@@ -46,10 +46,11 @@ class FilterIO
   def readchar
     raise EOFError, 'end of file reached' if eof?
     if @io.respond_to? :external_encoding
-      data = empty_string
+      data = empty_string_raw
       begin
-        data << read(1).force_encoding(@io.external_encoding)
+        data << read(1).force_encoding(@io.internal_encoding || @io.external_encoding)
       end until data.valid_encoding? or source_eof?
+      data.encode! @io.internal_encoding if @io.internal_encoding
       data
     else
       read(1).ord
@@ -68,17 +69,26 @@ class FilterIO
     return '' if length == 0
     
     # fill the buffer up to the fill level (or whole input if length is nil)
-    while !source_eof? && (length.nil? || length > @buffer.size)
+    while !source_eof? && (length.nil? || length > bytesize(@buffer))
       buffer_data @options[:block_size] || length
     end
     
     # we now have all the data in the buffer that we need (or can get if EOF)
     case
-    when @buffer.size > 0
+    when bytesize(@buffer) > 0
       # limit length to the buffer size if we were asked for it all or have ran out (EOF)
-      length = @buffer.size if length.nil? or length > @buffer.size
-      @pos += length
-      @buffer.slice!(0, length)
+      read_length = if length.nil? or length > bytesize(@buffer)
+        bytesize @buffer
+      else
+        length
+      end
+      data = pop_bytes read_length
+      @pos += bytesize(data)
+      if length.nil? && data.respond_to?(:encoding)
+        data.force_encoding @io.external_encoding
+        data.encode! @io.internal_encoding if @io.internal_encoding
+      end
+      data
     when source_eof?
       # end of file, nothing in the buffer to return
       length.nil? ? empty_string : nil
@@ -112,7 +122,7 @@ class FilterIO
       @io.rewind
       @pos = 0
       @buffer = empty_string
-      @buffer_raw = empty_string
+      @buffer_raw = empty_string_raw
     else
       raise Errno::EINVAL, 'Random seek not supported'
     end
@@ -122,7 +132,8 @@ class FilterIO
   
   def ungetc(char)
     char = char.chr if char.respond_to? :chr
-    @pos -= 1 if @pos > 0
+    @pos -= bytesize(char)
+    @pos = 0 if @pos < 0
     @buffer = char + @buffer
   end
   
@@ -161,9 +172,8 @@ class FilterIO
     end
     
     # increment the position and return the buffer fragment
-    @pos += length
     data = @buffer.slice!(0, length)
-    data = data.force_encoding(@io.external_encoding) if @io.respond_to? :external_encoding
+    @pos += bytesize(data)
     
     data
   end
@@ -195,8 +205,36 @@ class FilterIO
   
   def empty_string
     str = String.new
-    str.force_encoding @io.external_encoding if @io.respond_to?(:external_encoding)
+    if @io.respond_to?(:internal_encoding)
+      str.force_encoding @io.internal_encoding || @io.external_encoding
+    end
     str
+  end
+  
+  def empty_string_raw
+    str = String.new
+    if @io.respond_to?(:external_encoding)
+      str.force_encoding @io.external_encoding
+    end
+    str
+  end
+  
+  def bytesize(str)
+    str.respond_to?(:bytesize) ? str.bytesize : str.size
+  end
+  
+  def pop_bytes(count)
+    data = begin
+      if @io.respond_to?(:internal_encoding)
+        @buffer.force_encoding 'ASCII-8BIT'
+      end
+      @buffer.slice!(0, count)
+    ensure
+      if @io.respond_to?(:internal_encoding)
+        @buffer.force_encoding @io.internal_encoding || @io.external_encoding
+      end
+    end
+    data
   end
   
   def buffer_data(block_size = nil)
@@ -204,12 +242,12 @@ class FilterIO
     block_size ||= DEFAULT_BLOCK_SIZE
     
     data = unless @buffer_raw.empty?
-     @buffer_raw.slice! 0, @buffer_raw.size
+     @buffer_raw.slice! 0, bytesize(@buffer_raw)
     else
      @io.read(block_size) or return
     end
     
-    initial_data_size = data.size
+    initial_data_size = bytesize(data)
     begin
       data = process_data data, initial_data_size
     rescue NeedMoreData => e
@@ -221,29 +259,33 @@ class FilterIO
     data = [data] unless data.is_a? Array
     raise 'Block must have 1 or 2 values' unless data.size <= 2
     @buffer << data[0]
-    @buffer_raw = data[1] if data[1]
+    if data[1]
+      if @io.respond_to?(:internal_encoding) && @io.internal_encoding
+        data[1].convert! @io.external_encoding
+      end
+      @buffer_raw = data[1]
+    end
     
   end
   
   def process_data(data, initial_data_size)
     
-    if data && @block
-      
-      if data.respond_to? :encoding
-        org_encoding = data.encoding
-        data.force_encoding @io.external_encoding
-        additional_data_size = data.size - initial_data_size
-        unless data.valid_encoding? or source_eof? or additional_data_size >= 4
-          data.force_encoding org_encoding
-          raise NeedMoreData
-        end
+    if data.respond_to? :encoding
+      org_encoding = data.encoding
+      data.force_encoding @io.external_encoding
+      additional_data_size = bytesize(data) - initial_data_size
+      unless data.valid_encoding? or source_eof? or additional_data_size >= 4
+        data.force_encoding org_encoding
+        raise NeedMoreData
       end
-      
+      data.encode! @io.internal_encoding if @io.internal_encoding
+    end
+    
+    if data && @block
       state = BlockState.new @io.pos == data.length, source_eof?
       args = [data, state]
       args = args.first(@block.arity > 0 ? @block.arity : 1)
       data = @block.call(*args)
-      
     end
     
     data

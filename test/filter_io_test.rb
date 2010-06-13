@@ -2,6 +2,7 @@
 
 require 'test_helper'
 require 'stringio'
+require 'tempfile'
 
 class FilterIOTest < ActiveSupport::TestCase
   
@@ -72,7 +73,13 @@ class FilterIOTest < ActiveSupport::TestCase
   end
   
   test "unicode read" do
-    assert_equal_reference_io('Résume') { |io| io.read(2) }
+    (1..3).each do |read_size|
+      assert_equal_reference_io('Résume') { |io| io.read read_size }
+    end
+  end
+  
+  test "unicode read all" do
+    assert_equal_reference_io('Résume') { |io| io.read }
   end
   
   test "unicode gets" do
@@ -104,6 +111,137 @@ class FilterIOTest < ActiveSupport::TestCase
     end
     assert_equal input, actual
     assert_operator block_count, :>=, 3
+  end
+  
+  if IO.method_defined? :external_encoding
+    
+    def with_iso8859_1_test_file(internal_encoding)
+      Tempfile.open 'filter_io' do |tempfile|
+        File.open(tempfile.path, 'wb') do |io|
+          io.write "\xFCber\nR\xE9sum\xE9"
+        end
+        File.open(tempfile.path, :external_encoding => 'ISO-8859-1', :internal_encoding => internal_encoding) do |io|
+          yield io
+        end
+      end
+    end
+    
+    test "ISO-8859-1 sanity check to UTF-8" do
+      with_iso8859_1_test_file 'UTF-8' do |io_raw|
+        assert_equal 'ü', io_raw.readchar
+        assert_equal "ber\n", io_raw.gets
+        str = io_raw.gets
+        assert_equal 'résumé', str.downcase
+        assert_equal 'UTF-8', str.encoding.name
+      end
+    end
+    
+    test "ISO-8859-1 sanity check raw" do
+      with_iso8859_1_test_file nil do |io_raw|
+        assert_equal 'ü'.encode('ISO-8859-1'), io_raw.readchar
+        assert_equal "ber\n", io_raw.gets
+        str = io_raw.gets
+        assert_equal 'résumé'.encode('ISO-8859-1'), str.downcase
+        assert_equal 'ISO-8859-1', str.encoding.name
+      end
+    end
+    
+    test "iso-8859-1 readchar to UTF-8" do
+      with_iso8859_1_test_file 'UTF-8' do |io_raw|
+        io = FilterIO.new(io_raw)
+        "über\n".chars.each do |expected|
+          actual = io.readchar
+          assert_equal expected, actual
+          assert_equal 'UTF-8', actual.encoding.name
+        end
+      end
+    end
+    
+    test "iso-8859-1 readchar raw" do
+      with_iso8859_1_test_file nil do |io_raw|
+        io = FilterIO.new(io_raw)
+        "über\n".encode('ISO-8859-1').chars.each do |expected|
+          actual = io.readchar
+          assert_equal expected, actual
+          assert_equal 'ISO-8859-1', actual.encoding.name
+        end
+      end
+    end
+    
+    test "iso-8859-1 read to UTF-8" do
+      with_iso8859_1_test_file 'UTF-8' do |io_raw|
+        io = FilterIO.new(io_raw)
+        assert_equal 'ü'.force_encoding('ASCII-8BIT'), io.read(2)
+        assert_equal 'ASCII-8BIT', io.read(2).encoding.name
+      end
+    end
+    
+    test "iso-8859-1 read raw" do
+      with_iso8859_1_test_file nil do |io_raw|
+        io = FilterIO.new(io_raw)
+        assert_equal 'ü'.encode('ISO-8859-1').force_encoding('ASCII-8BIT'), io.read(1)
+        assert_equal 'ASCII-8BIT', io.read(2).encoding.name
+      end
+    end
+    
+    test "iso-8859-1 lines to UTF-8" do
+      with_iso8859_1_test_file 'UTF-8' do |io_raw|
+        io = FilterIO.new(io_raw)
+        expected = ["über\n", 'Résumé']
+        actual = io.lines.to_a
+        assert_equal expected, actual
+        assert_equal 'UTF-8', actual[0].encoding.name
+      end
+    end
+    
+    test "iso-8859-1 lines raw" do
+      with_iso8859_1_test_file nil do |io_raw|
+        io = FilterIO.new(io_raw)
+        expected = ["über\n", 'Résumé'].map { |str| str.encode('ISO-8859-1') }
+        actual = io.lines.to_a
+        assert_equal expected, actual
+        assert_equal 'ISO-8859-1', actual[0].encoding.name
+      end
+    end
+    
+    test "iso-8859-1 block to UTF-8" do
+      [1, 2, nil].each do |block_size|
+        expected = "über\nrésumé"
+        with_iso8859_1_test_file 'UTF-8' do |io_raw|
+          io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
+            assert_equal 'ü', data[0] if state.bof?
+            assert_equal 'UTF-8', data.encoding.name
+            data.downcase
+          end
+          assert_equal 'ü', io.readchar
+          assert_equal 'UTF-8', io.gets.encoding.name
+          assert_equal 'rés'.force_encoding('ASCII-8BIT'), io.read(4)
+          str = io.gets
+          assert_equal 'umé', str
+          assert_equal 'UTF-8', str.encoding.name
+        end
+      end
+    end
+    
+    test "iso-8859-1 block raw" do
+      [1, 2, nil].each do |block_size|
+        expected = "über\nrésumé".encode('ISO-8859-1')
+        with_iso8859_1_test_file 'ISO-8859-1' do |io_raw|
+          io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
+            assert_equal 'ü'.encode('ISO-8859-1'), data[0] if state.bof?
+            assert_equal 'ISO-8859-1', data.encoding.name
+            data.downcase
+          end
+          assert_equal 'ü'.encode('ISO-8859-1'), io.readchar
+          assert_equal 'ISO-8859-1', io.gets.encoding.name
+          assert_equal 'rés'.encode('ISO-8859-1').force_encoding('ASCII-8BIT'), io.read(3)
+          str = io.gets
+          assert_equal 'umé'.encode('ISO-8859-1'), str
+          assert_equal 'ISO-8859-1', str.encoding.name
+        end
+      end
+    end
+    
   end
   
   test "read" do
