@@ -89,6 +89,23 @@ class FilterIOTest < ActiveSupport::TestCase
     end
   end
   
+  test "should not buffer forever on bad encoding" do
+    input = "123\xc3\xc34567890"
+    block_count = 0
+    io = FilterIO.new(StringIO.new(input), :block_size => 2) do |data|
+      block_count += 1
+      assert_operator data.size, :<=, 6
+      data
+    end
+    actual = io.read
+    if input.respond_to? :force_encoding
+      input.force_encoding 'ASCII-8BIT'
+      actual.force_encoding 'ASCII-8BIT'
+    end
+    assert_equal input, actual
+    assert_operator block_count, :>=, 3
+  end
+  
   test "read" do
     input = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
     io_reference = StringIO.new(input)

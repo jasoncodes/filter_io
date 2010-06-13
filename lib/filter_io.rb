@@ -209,9 +209,10 @@ class FilterIO
      @io.read(block_size) or return
     end
     
+    initial_data_size = data.size
     begin
-      data = process_data data
-    rescue NeedMoreData
+      data = process_data data, initial_data_size
+    rescue NeedMoreData => e
       raise EOFError, 'end of file reached' if eof?
       data << @io.read(block_size)
       retry
@@ -224,16 +225,17 @@ class FilterIO
     
   end
   
-  def process_data(data)
+  def process_data(data, initial_data_size)
     
     if data && @block
       
       if data.respond_to? :encoding
         org_encoding = data.encoding
         data.force_encoding @io.external_encoding
-        unless data.valid_encoding?
+        additional_data_size = data.size - initial_data_size
+        unless data.valid_encoding? or source_eof? or additional_data_size >= 4
           data.force_encoding org_encoding
-          raise NeedMoreData unless source_eof?
+          raise NeedMoreData
         end
       end
       
