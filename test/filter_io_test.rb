@@ -650,4 +650,29 @@ class FilterIOTest < ActiveSupport::TestCase
     end
   end
   
+  test "get more data via unget" do
+    
+    input = "foo\ntest\n\n12345\n678"
+    expected = input.gsub(/^.*$/) { |x| "#{$&.size} #{$&}" }
+    expected += "\n" unless expected =~ /\n\z/
+    
+    block_count = 0
+    io = FilterIO.new StringIO.new(input), :block_size => 2 do |data, state|
+      block_count += 1
+      raise 'Too many retries' if block_count > 100
+      raise "Expected less data: #{data.inspect}" if data.size > 6
+      output = ''
+      while data =~ /(.*)\n/ || (state.eof? && data =~ /(.+)/)
+        output << "#{$1.size} #{$1}\n"
+        data = $'
+      end
+      [output, data]
+    end
+    actual = io.read
+    
+    assert_equal expected, actual
+    assert_operator block_count, :>=, 10
+    
+  end
+  
 end

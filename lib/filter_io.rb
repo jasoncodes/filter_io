@@ -249,7 +249,17 @@ class FilterIO
     
     initial_data_size = bytesize(data)
     begin
+      
       data = process_data data, initial_data_size
+      
+      # if no processed data was returned and there is unprocessed data...
+      if data.is_a?(Array) && data.size == 2 && data[0].size == 0 && data[1].size > 0
+        # restore the unprocessed data into the temporary buffer
+        data = data[1]
+        # and add some more data to the buffer
+        raise NeedMoreData
+      end
+      
     rescue NeedMoreData => e
       raise EOFError, 'end of file reached' if eof?
       data << @io.read(block_size)
