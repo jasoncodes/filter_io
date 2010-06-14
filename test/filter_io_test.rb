@@ -675,4 +675,32 @@ class FilterIOTest < ActiveSupport::TestCase
     
   end
   
+  test "close method" do
+    [2, 16].each do |block_size|
+      
+      source_io = StringIO.new("foo\nbar\nbaz")
+      filtered_io = FilterIO.new(source_io, :block_size => block_size, &:upcase)
+      
+      assert_equal "FOO\n", filtered_io.gets
+      
+      # close the filtered stream
+      filtered_io.close
+      
+      # both the filtered and source stream should be closed
+      assert_true source_io.closed?
+      assert_true filtered_io.closed?
+      
+      # futher reads should raise an error
+      assert_raise IOError do
+        filtered_io.gets
+      end
+      
+      # closing again should raise an error
+      assert_raise IOError do
+        filtered_io.close
+      end
+      
+    end
+  end
+  
 end

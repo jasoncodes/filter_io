@@ -43,6 +43,14 @@ class FilterIO
     @buffer_raw.empty? && @io.eof?
   end
   
+  def close
+    @io.close
+  end
+  
+  def closed?
+    @io.closed?
+  end
+  
   def readchar
     raise EOFError, 'end of file reached' if eof?
     if @io.respond_to? :external_encoding
