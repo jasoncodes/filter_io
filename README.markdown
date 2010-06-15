@@ -1,7 +1,7 @@
 # `filter_io`
 ## Filter IO streams with a block. Ruby's FilterInputStream.
 
-`filter_io` is analogous to Java's `FilterIOStream` in that it allows you to intercept and process data in an IO stream. This is particularly useful when used to clean up bad input data when using a CSV or XML parser.
+`filter_io` is analogous to Java's `FilterIOStream` in that it allows you to intercept and process data in an IO stream. This is particularly useful when cleaning up bad input data for a CSV or XML parser.
 
 `filter_io` provides a one-pass approach to filtering data which can be much faster and memory efficient than doing two passes (cleaning the source file into a buffer and then calling the original parser).
 
@@ -54,7 +54,7 @@ An optional second parameter to the block is the `state` parameter which contain
 * `bof?`: Returns true if this is the *first* chuck of the stream.
 * `eof?`: Returns true if this is the *last* chunk of the stream.
 
-#### `NeedMoreData`
+#### Requesting Additional Data
 
 If the filtering block needs more data to be able to return anything, you can raise a `FilterIO::NeedMoreData` exception and `filter_io` will read another block and pass the additional data to you. This can be repeated as necessary until enough data is retrieved.
 
@@ -62,7 +62,7 @@ For example usage of `NeedMoreData`, see the line ending normalisation example a
 
 #### Re-buffering Unprocessed Data
 
-If your block is unable to process the whole chunk of data immediately, it can return both the processed chuck and the remainder to be processed later. This is done by returning a 2 element array: `[processed, unprocessed]`. If output is empty and unprocessed data is returned, `filter_io` will grab some more data and call the block again.
+If your block is unable to process the whole chunk of data immediately, it can return both the processed chuck and the remainder to be processed later. This is done by returning a 2 element array: `[processed, unprocessed]`. If `processed` is empty and there is `unprocessed` data, `filter_io` will grab another block of data from the source stream and call the block again.
 
 Here's an example which processes whole lines and prepends the line length to the beginning of each line.
 
