@@ -9,9 +9,9 @@
 
 ### Installation
 
-You can install from Gemcutter by running:
+You can install the gem by running:
 
-    sudo gem install filter_io
+    gem install filter_io
 
 ### Example Usage
 
@@ -88,15 +88,13 @@ Ruby 1.9 has character encoding support can convert between UTF-8, ISO-8859-1, A
 As per the core `IO` object, if `read` is called with a length (in bytes), the data will be returned in the external encoding.
 In summary, everything should Just Work&trade;
 
-### Note on Patches/Pull Requests
+### Notes on Patches/Pull Requests
  
-* Fork the project.
-* Make your feature addition or bug fix.
-* Add tests for it. This is important so I don't break it in a
-  future version unintentionally.
-* Commit, do not mess with rakefile, version, or history.
-  (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
-* Send me a pull request. Bonus points for topic branches.
+1. Fork the project.
+1. Make your feature addition or bug fix.
+1. Add tests for it. This is important so I don't break it in a future version unintentionally.
+1. Commit, do not mess with rakefile, version, or history. (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
+1. Send me a pull request. Bonus points for topic branches.
 
 ### Copyright
 
