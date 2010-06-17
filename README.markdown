@@ -45,7 +45,7 @@ A common usage of `filter_io` is to normalise line endings before parsing CSV da
 
 ### Reference
 
-Call `FilterIO.new` with the original IO stream, any options and the filtering block. The returned object pretends like a normal read-only non-seekable IO stream.
+Call `FilterIO.new` with the original IO stream, any options and the filtering block. The returned `filter_io` object acts like a normal read-only forward-only IO stream.
 
 #### Block `state` parameter
 
@@ -93,7 +93,7 @@ In summary, everything should Just Work&trade;
 1. Fork the project.
 1. Make your feature addition or bug fix.
 1. Add tests for it. This is important so I don't break it in a future version unintentionally.
-1. Commit, do not mess with rakefile, version, or history. (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
+1. Commit, do not mess with Rakefile, VERSION, or history. (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
 1. Send me a pull request. Bonus points for topic branches.
 
 ### Copyright
