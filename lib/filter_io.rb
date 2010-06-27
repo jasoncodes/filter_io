@@ -167,7 +167,7 @@ class FilterIO
     
     # fill the buffer until it contains the separator sequence
     until source_eof? or @buffer.index(sep_string)
-      buffer_data
+      buffer_data @options[:block_size]
     end
     
     # calculate how much of the buffer to return

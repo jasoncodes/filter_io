@@ -317,7 +317,7 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal expected, io.read
   end
   
-  test "block size" do
+  test "block size for read(nil)" do
     [1,4,7,9,13,30].each do |block_size|
       input = ('A'..'Z').to_a.join
       expected = input.chars.enum_for(:each_slice, block_size).to_a.map(&:join).map { |x| "[#{x}]" }.join
@@ -325,6 +325,18 @@ class FilterIOTest < ActiveSupport::TestCase
         "[#{data}]"
       end
       assert_equal expected, io.read
+    end
+  end
+  
+  test "block size for gets/readline" do
+    [1,4,7,9,13,30].each do |block_size|
+      input = "ABCDEFG\nHJIKLMNOP\n"
+      expected = input.chars.enum_for(:each_slice, block_size).to_a.map(&:join).map { |x| "[#{x}]" }.join.lines.to_a
+      io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data|
+        "[#{data}]"
+      end
+      actual = io.readlines
+      assert_equal expected, actual
     end
   end
   
