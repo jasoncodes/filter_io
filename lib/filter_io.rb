@@ -1,4 +1,7 @@
 require 'active_support'
+require 'active_support/core_ext/string'
+require 'active_support/core_ext/array'
+require 'active_support/core_ext/hash'
 
 class FilterIO
   
