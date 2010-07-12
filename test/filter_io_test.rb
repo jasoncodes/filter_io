@@ -715,4 +715,11 @@ class FilterIOTest < ActiveSupport::TestCase
     end
   end
   
+  test "should raise IO error if block returns nil" do
+    io = FilterIO.new(StringIO.new("foo")) { |data| nil }
+    assert_raise IOError do
+      io.read.to_a
+    end
+  end
+  
 end

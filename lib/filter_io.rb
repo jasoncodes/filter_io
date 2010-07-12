@@ -307,6 +307,7 @@ class FilterIO
       args = [data, state]
       args = args.first(@block.arity > 0 ? @block.arity : 1)
       data = @block.call(*args)
+      raise IOError, 'Block returned nil' if data.nil?
     end
     
     data
