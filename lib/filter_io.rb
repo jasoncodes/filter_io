@@ -272,7 +272,7 @@ class FilterIO
       end
       
     rescue NeedMoreData => e
-      raise EOFError, 'end of file reached' if eof?
+      raise EOFError, 'end of file reached' if @io.eof?
       data << @io.read(block_size)
       retry
     end
