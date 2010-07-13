@@ -310,6 +310,24 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal expected, io.read
   end
   
+  test "mutate before NeedMoreData shouldn't affect next block call" do
+    input = "foobar"
+    expected = [
+      ['fo', true],
+      ['foob', true],
+      ['ar', false],
+    ]
+    actual = []
+    io = FilterIO.new(StringIO.new(input), :block_size => 2) do |data, state|
+      actual << [data.dup, state.bof?]
+      data.upcase!
+      raise FilterIO::NeedMoreData if data == 'FO'
+      data
+    end
+    assert_equal input.upcase, io.read
+    assert_equal expected, actual
+  end
+  
   test "Symbol#to_proc" do
     input = 'foo bar'
     expected = 'FOO BAR'
