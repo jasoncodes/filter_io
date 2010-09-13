@@ -279,6 +279,11 @@ class FilterIO
     
     data = [data] unless data.is_a? Array
     raise 'Block must have 1 or 2 values' unless data.size <= 2
+    if @buffer.respond_to?(:encoding) && @buffer.encoding != data[0].encoding
+      if [@buffer, data[0]].any? { |x| x.encoding.to_s == 'ASCII-8BIT' }
+        data[0] = data[0].dup.force_encoding @buffer.encoding
+      end
+    end
     @buffer << data[0]
     if data[1]
       if @io.respond_to?(:internal_encoding) && @io.internal_encoding

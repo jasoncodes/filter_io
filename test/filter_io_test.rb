@@ -242,6 +242,16 @@ class FilterIOTest < ActiveSupport::TestCase
       end
     end
     
+    test "block returning mix of UTF-8 and ASCII-8BIT" do
+      input = "X\xE2\x80\x94Y\xe2\x80\x99"
+      input.force_encoding 'ASCII-8BIT'
+      io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
+        data.force_encoding data[0] == 'Y' ? 'UTF-8' : 'ASCII-8BIT'
+        data
+      end
+      assert_equal input, io.read
+    end
+    
   end
   
   test "read" do
