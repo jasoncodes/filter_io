@@ -431,7 +431,7 @@ class FilterIOTest < ActiveSupport::TestCase
   
   test "need more data" do
     input = '1ab123456cde78f9ghij0'
-    expected = input.gsub /\d+/, '[\0]'
+    expected = input.gsub(/\d+/, '[\0]')
     (1..5).each do |block_size|
       expected_size = 0
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data, state|
@@ -439,7 +439,7 @@ class FilterIOTest < ActiveSupport::TestCase
         raise FilterIO::NeedMoreData if data =~ /\d\z/ && !state.eof?
         assert_equal expected_size, data.size unless state.eof?
         expected_size = 0
-        data.gsub /\d+/, '[\0]'
+        data.gsub(/\d+/, '[\0]')
       end
       assert_equal expected, io.read
     end
@@ -451,7 +451,7 @@ class FilterIOTest < ActiveSupport::TestCase
     (1..5).each do |block_size|
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data, state|
         raise FilterIO::NeedMoreData if data =~ /[\r\n]\z/ && !state.eof?
-        data.gsub /\r\n|\r|\n/, "\n"
+        data.gsub(/\r\n|\r|\n/, "\n")
       end
       assert_equal expected, io.read
     end
@@ -459,10 +459,10 @@ class FilterIOTest < ActiveSupport::TestCase
   
   test "dropping characters" do
     input = "ab1cde23f1g4hijklmno567pqr8stu9vw0xyz"
-    expected = input.gsub /\d+/, ''
+    expected = input.gsub(/\d+/, '')
     (1..5).each do |block_size|
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data|
-        data.gsub /\d+/, ''
+        data.gsub(/\d+/, '')
       end
       assert_equal 0, io.pos
       assert_equal expected, io.read
@@ -621,19 +621,19 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_equal 'c', io.read(1)
     assert_equal 3, io.pos
     assert_raise Errno::EINVAL do
-      io.seek -1, IO::SEEK_CUR
+      io.seek(-1, IO::SEEK_CUR)
     end
     assert_equal 3, io.pos
     
     # forwards fail
     assert_equal 3, io.pos
     assert_raise Errno::EINVAL do
-      io.seek 2, IO::SEEK_CUR
+      io.seek(2, IO::SEEK_CUR)
     end
     assert_equal 3, io.pos
     
     # beginning
-    io.seek -io.pos, IO::SEEK_CUR
+    io.seek(-io.pos, IO::SEEK_CUR)
     assert_equal 0, io.pos
     
   end
@@ -641,13 +641,13 @@ class FilterIOTest < ActiveSupport::TestCase
   test "seek end" do
     io = FilterIO.new(StringIO.new("abcdef"))
     assert_raise Errno::EINVAL do
-      io.seek 0, IO::SEEK_END
+      io.seek(0, IO::SEEK_END)
     end
     assert_raise Errno::EINVAL do
-      io.seek 6, IO::SEEK_END
+      io.seek(6, IO::SEEK_END)
     end
     assert_raise Errno::EINVAL do
-      io.seek -6, IO::SEEK_END
+      io.seek(-6, IO::SEEK_END)
     end
   end
   
