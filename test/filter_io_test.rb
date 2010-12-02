@@ -3,6 +3,7 @@
 require 'test_helper'
 require 'stringio'
 require 'tempfile'
+require 'zlib'
 
 class FilterIOTest < ActiveSupport::TestCase
   
@@ -757,6 +758,20 @@ class FilterIOTest < ActiveSupport::TestCase
     assert_raise IOError do
       io.read.to_a
     end
+  end
+  
+  test "should be able to read from GzipReader stream" do
+    input = "über résumé"
+    input.force_encoding 'ASCII-8BIT' if input.respond_to? :force_encoding
+    buffer = StringIO.new
+    out = Zlib::GzipWriter.new buffer
+    out.write input
+    out.finish
+    buffer.rewind
+    io = Zlib::GzipReader.new(buffer)
+    
+    io = FilterIO.new(io)
+    assert_equal input, io.read
   end
   
 end

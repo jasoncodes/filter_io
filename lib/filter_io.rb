@@ -95,7 +95,7 @@ class FilterIO
       end
       data = pop_bytes read_length
       @pos += bytesize(data)
-      if length.nil? && data.respond_to?(:encoding)
+      if length.nil? && @io.respond_to?(:external_encoding)
         data.force_encoding @io.external_encoding
         data.encode! @io.internal_encoding if @io.internal_encoding
       end
@@ -296,7 +296,7 @@ class FilterIO
   
   def process_data(data, initial_data_size)
     
-    if data.respond_to? :encoding
+    if @io.respond_to? :external_encoding
       org_encoding = data.encoding
       data.force_encoding @io.external_encoding
       additional_data_size = bytesize(data) - initial_data_size
