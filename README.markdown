@@ -11,37 +11,41 @@
 
 You can install the gem by running:
 
-    gem install filter_io
+``` sh
+gem install filter_io
+```
 
 ### Example Usage
 
 #### A Simple Example: ROT-13
 
-    io = FilterIO.new io do |data|
-      data.tr "A-Za-z", "N-ZA-Mn-za-m"
-    end
+``` ruby
+io = FilterIO.new io do |data|
+  data.tr "A-Za-z", "N-ZA-Mn-za-m"
+end
+```
 
 #### A Useful Example: Line Ending Normalisation
 
 A common usage of `filter_io` is to normalise line endings before parsing CSV data:
 
-    # open source stream
-    File.open(filename) do |io|
-      
-      # apply filter to stream
-      io = FilterIO.new(io) do |data, state|
-        # grab another chunk if the last character is a delimiter
-        raise FilterIO::NeedMoreData if data =~ /[\r\n]\z/ && !state.eof?
-        # normalise line endings to LF
-        data.gsub /\r\n|\r|\n/, "\n"
-      end
-      
-      # process resulting stream normally
-      FasterCSV.parse(io) do |row|
-        pp row
-      end
-      
-    end
+``` ruby
+# open source stream
+File.open(filename) do |io|
+  # apply filter to stream
+  io = FilterIO.new(io) do |data, state|
+    # grab another chunk if the last character is a delimiter
+    raise FilterIO::NeedMoreData if data =~ /[\r\n]\z/ && !state.eof?
+    # normalise line endings to LF
+    data.gsub /\r\n|\r|\n/, "\n"
+  end
+  
+  # process resulting stream normally
+  FasterCSV.parse(io) do |row|
+    pp row
+  end
+end
+```
 
 ### Reference
 
@@ -66,16 +70,18 @@ If your block is unable to process the whole chunk of data immediately, it can r
 
 Here's an example which processes whole lines and prepends the line length to the beginning of each line.
 
-    io = FilterIO.new io do |data, state|
-      output = ''
-      # grab complete lines until we hit EOF
-      while data =~ /(.*)\n/ || (state.eof? && data =~ /(.+)/)
-        output << "#{$1.size} #{$1}\n"
-        data = $'
-      end
-      # `output` contains the processed lines, `data` contains any left over partial line
-      [output, data]
-    end
+``` ruby
+io = FilterIO.new io do |data, state|
+  output = ''
+  # grab complete lines until we hit EOF
+  while data =~ /(.*)\n/ || (state.eof? && data =~ /(.+)/)
+    output << "#{$1.size} #{$1}\n"
+    data = $'
+  end
+  # `output` contains the processed lines, `data` contains any left over partial line
+  [output, data]
+end
+```
 
 #### Block Size
 
