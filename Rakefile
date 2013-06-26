@@ -24,7 +24,6 @@ begin
     gem.homepage = "http://github.com/jasoncodes/filter_io"
     gem.authors = ["Jason Weathered"]
     gem.has_rdoc = false
-    gem.add_dependency 'activesupport'
   end
   Jeweler::GemcutterTasks.new
 rescue LoadError
