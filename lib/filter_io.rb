@@ -53,18 +53,30 @@ class FilterIO
     @io.closed?
   end
 
+  def internal_encoding
+    if @io.respond_to?(:internal_encoding)
+      @io.internal_encoding
+    end
+  end
+
+  def external_encoding
+    if @io.respond_to?(:external_encoding)
+      @io.external_encoding
+    end
+  end
+
   def readchar
     raise EOFError, 'end of file reached' if eof?
-    if @io.respond_to? :external_encoding
-      data = empty_string_raw
-      begin
-        data << read(1).force_encoding(@io.internal_encoding || @io.external_encoding)
-      end until data.valid_encoding? or source_eof?
-      data.encode! @io.internal_encoding if @io.internal_encoding
-      data
-    else
-      read(1).ord
-    end
+    data = empty_string_raw
+    begin
+      byte = read(1)
+      if internal_encoding || external_encoding
+        byte.force_encoding internal_encoding || external_encoding
+      end
+      data << byte
+    end until data.valid_encoding? or source_eof?
+    data.encode! internal_encoding if internal_encoding
+    data
   end
 
   def getc
@@ -93,9 +105,9 @@ class FilterIO
       end
       data = pop_bytes read_length
       @pos += data.bytesize
-      if length.nil? && @io.respond_to?(:external_encoding)
-        data.force_encoding @io.external_encoding
-        data.encode! @io.internal_encoding if @io.internal_encoding
+      if length.nil?
+        data.force_encoding external_encoding if external_encoding
+        data.encode! internal_encoding if internal_encoding
       end
       data
     when source_eof?
@@ -211,30 +223,27 @@ class FilterIO
 
   def empty_string
     str = String.new
-    if @io.respond_to?(:internal_encoding)
-      str.force_encoding @io.internal_encoding || @io.external_encoding
+    if internal_encoding || external_encoding
+      str.force_encoding internal_encoding || external_encoding
     end
     str
   end
 
   def empty_string_raw
     str = String.new
-    if @io.respond_to?(:external_encoding)
-      str.force_encoding @io.external_encoding
+    if external_encoding
+      str.force_encoding external_encoding
     end
     str
   end
 
   def pop_bytes(count)
     data = begin
-      if @io.respond_to?(:internal_encoding)
-        @buffer.force_encoding 'ASCII-8BIT'
-      end
+      org_encoding = @buffer.encoding
+      @buffer.force_encoding 'ASCII-8BIT'
       @buffer.slice!(0, count)
     ensure
-      if @io.respond_to?(:internal_encoding)
-        @buffer.force_encoding @io.internal_encoding || @io.external_encoding
-      end
+      @buffer.force_encoding org_encoding
     end
     data
   end
@@ -267,31 +276,29 @@ class FilterIO
 
     data = [data] unless data.is_a? Array
     raise 'Block must have 1 or 2 values' unless data.size <= 2
-    if @buffer.respond_to?(:encoding) && @buffer.encoding != data[0].encoding
+    if @buffer.encoding != data[0].encoding
       if [@buffer, data[0]].any? { |x| x.encoding.to_s == 'ASCII-8BIT' }
         data[0] = data[0].dup.force_encoding @buffer.encoding
       end
     end
     @buffer << data[0]
     if data[1]
-      if @io.respond_to?(:internal_encoding) && @io.internal_encoding
-        data[1].convert! @io.external_encoding
+      if internal_encoding
+        data[1].convert! external_encoding
       end
       @buffer_raw = data[1]
     end
   end
 
   def process_data(data, initial_data_size)
-    if @io.respond_to? :external_encoding
-      org_encoding = data.encoding
-      data.force_encoding @io.external_encoding
-      additional_data_size = data.bytesize - initial_data_size
-      unless data.valid_encoding? or source_eof? or additional_data_size >= 4
-        data.force_encoding org_encoding
-        raise NeedMoreData
-      end
-      data.encode! @io.internal_encoding if @io.internal_encoding
+    org_encoding = data.encoding
+    data.force_encoding external_encoding if external_encoding
+    additional_data_size = data.bytesize - initial_data_size
+    unless data.valid_encoding? or source_eof? or additional_data_size >= 4
+      data.force_encoding org_encoding
+      raise NeedMoreData
     end
+    data.encode! internal_encoding if internal_encoding
 
     if data && @block
       state = BlockState.new @io.pos == data.length, source_eof?
