@@ -103,155 +103,151 @@ describe FilterIO do
       data
     end
     actual = io.read
-    if input.respond_to? :force_encoding
-      input.force_encoding 'ASCII-8BIT'
-      actual.force_encoding 'ASCII-8BIT'
-    end
+    input.force_encoding 'ASCII-8BIT'
+    actual.force_encoding 'ASCII-8BIT'
     expect(actual).to eq input
     expect(block_count).to be >= 3
   end
 
-  if IO.method_defined? :external_encoding
-    def with_iso8859_1_test_file(internal_encoding)
-      Tempfile.open 'filter_io' do |tempfile|
-        File.open(tempfile.path, 'wb') do |io|
-          io.write "\xFCber\nR\xE9sum\xE9"
-        end
-        File.open(tempfile.path, :external_encoding => 'ISO-8859-1', :internal_encoding => internal_encoding) do |io|
-          yield io
-        end
+  def with_iso8859_1_test_file(internal_encoding)
+    Tempfile.open 'filter_io' do |tempfile|
+      File.open(tempfile.path, 'wb') do |io|
+        io.write "\xFCber\nR\xE9sum\xE9"
+      end
+      File.open(tempfile.path, :external_encoding => 'ISO-8859-1', :internal_encoding => internal_encoding) do |io|
+        yield io
       end
     end
+  end
 
-    it 'converts ISO-8859-1 to UTF-8 using `gets`' do
+  it 'converts ISO-8859-1 to UTF-8 using `gets`' do
+    with_iso8859_1_test_file 'UTF-8' do |io_raw|
+      expect(io_raw.readchar).to eq 'ü'
+      expect(io_raw.gets).to eq "ber\n"
+      str = io_raw.gets
+      expect(str.downcase).to eq 'résumé'
+      expect(str.encoding.name).to eq 'UTF-8'
+    end
+  end
+
+  it 'converts ISO-8859-1 to raw using `gets`' do
+    with_iso8859_1_test_file nil do |io_raw|
+      expect(io_raw.readchar).to eq 'ü'.encode('ISO-8859-1')
+      expect(io_raw.gets).to eq "ber\n"
+      str = io_raw.gets
+      expect(str.downcase).to eq 'résumé'.encode('ISO-8859-1')
+      expect(str.encoding.name).to eq 'ISO-8859-1'
+    end
+  end
+
+  it 'converts ISO-8859-1 to UTF-8 using `readchar`' do
+    with_iso8859_1_test_file 'UTF-8' do |io_raw|
+      io = FilterIO.new(io_raw)
+      "über\n".chars.each do |expected|
+        actual = io.readchar
+        expect(actual).to eq expected
+        expect(actual.encoding.name).to eq 'UTF-8'
+      end
+    end
+  end
+
+  it 'converts ISO-8859-1 to raw using `readchar`' do
+    with_iso8859_1_test_file nil do |io_raw|
+      io = FilterIO.new(io_raw)
+      "über\n".encode('ISO-8859-1').chars.each do |expected|
+        actual = io.readchar
+        expect(actual).to eq expected
+        expect(actual.encoding.name).to eq 'ISO-8859-1'
+      end
+    end
+  end
+
+  it 'converts ISO-8859-1 to UTF-8 using `read`' do
+    with_iso8859_1_test_file 'UTF-8' do |io_raw|
+      io = FilterIO.new(io_raw)
+      expect(io.read(2)).to eq 'ü'.force_encoding('ASCII-8BIT')
+      expect(io.read(2).encoding.name).to eq 'ASCII-8BIT'
+    end
+  end
+
+  it 'converts ISO-8859-1 to raw using `read`' do
+    with_iso8859_1_test_file nil do |io_raw|
+      io = FilterIO.new(io_raw)
+      expect(io.read(1)).to eq 'ü'.encode('ISO-8859-1').force_encoding('ASCII-8BIT')
+      expect(io.read(2).encoding.name).to eq 'ASCII-8BIT'
+    end
+  end
+
+  it 'converts ISO-8859-1 to UTF-8 using `lines`' do
+    with_iso8859_1_test_file 'UTF-8' do |io_raw|
+      io = FilterIO.new(io_raw)
+      expected = ["über\n", 'Résumé']
+      actual = io.lines.to_a
+      expect(actual).to eq expected
+      expect(actual[0].encoding.name).to eq 'UTF-8'
+    end
+  end
+
+  it 'converts ISO-8859-1 to raw using `lines`' do
+    with_iso8859_1_test_file nil do |io_raw|
+      io = FilterIO.new(io_raw)
+      expected = ["über\n", 'Résumé'].map { |str| str.encode('ISO-8859-1') }
+      actual = io.lines.to_a
+      expect(actual).to eq expected
+      expect(actual[0].encoding.name).to eq 'ISO-8859-1'
+    end
+  end
+
+  it 'converts ISO-8859-1 to UTF-8 via a block' do
+    [1, 2, nil].each do |block_size|
+      expected = "über\nrésumé"
       with_iso8859_1_test_file 'UTF-8' do |io_raw|
-        expect(io_raw.readchar).to eq 'ü'
-        expect(io_raw.gets).to eq "ber\n"
-        str = io_raw.gets
-        expect(str.downcase).to eq 'résumé'
+        io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
+          if state.bof?
+            expect(data[0]).to eq 'ü'
+          end
+          expect(data.encoding.name).to eq 'UTF-8'
+          data.downcase
+        end
+        expect(io.readchar).to eq 'ü'
+        expect(io.gets.encoding.name).to eq 'UTF-8'
+        expect(io.read(4)).to eq 'rés'.force_encoding('ASCII-8BIT')
+        str = io.gets
+        expect(str).to eq 'umé'
         expect(str.encoding.name).to eq 'UTF-8'
       end
     end
+  end
 
-    it 'converts ISO-8859-1 to raw using `gets`' do
-      with_iso8859_1_test_file nil do |io_raw|
-        expect(io_raw.readchar).to eq 'ü'.encode('ISO-8859-1')
-        expect(io_raw.gets).to eq "ber\n"
-        str = io_raw.gets
-        expect(str.downcase).to eq 'résumé'.encode('ISO-8859-1')
+  it 'converts ISO-8859-1 to raw via a block' do
+    [1, 2, nil].each do |block_size|
+      expected = "über\nrésumé".encode('ISO-8859-1')
+      with_iso8859_1_test_file 'ISO-8859-1' do |io_raw|
+        io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
+          if state.bof?
+            expect(data[0]).to eq 'ü'.encode('ISO-8859-1')
+          end
+          expect(data.encoding.name).to eq 'ISO-8859-1'
+          data.downcase
+        end
+        expect(io.readchar).to eq 'ü'.encode('ISO-8859-1')
+        expect(io.gets.encoding.name).to eq 'ISO-8859-1'
+        expect(io.read(3)).to eq 'rés'.encode('ISO-8859-1').force_encoding('ASCII-8BIT')
+        str = io.gets
+        expect(str).to eq 'umé'.encode('ISO-8859-1')
         expect(str.encoding.name).to eq 'ISO-8859-1'
       end
     end
+  end
 
-    it 'converts ISO-8859-1 to UTF-8 using `readchar`' do
-      with_iso8859_1_test_file 'UTF-8' do |io_raw|
-        io = FilterIO.new(io_raw)
-        "über\n".chars.each do |expected|
-          actual = io.readchar
-          expect(actual).to eq expected
-          expect(actual.encoding.name).to eq 'UTF-8'
-        end
-      end
+  it 'supports a block returning mix of UTF-8 and ASCII-8BIT' do
+    input = "X\xE2\x80\x94Y\xe2\x80\x99"
+    input.force_encoding 'ASCII-8BIT'
+    io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
+      data.force_encoding data[0] == 'Y' ? 'UTF-8' : 'ASCII-8BIT'
+      data
     end
-
-    it 'converts ISO-8859-1 to raw using `readchar`' do
-      with_iso8859_1_test_file nil do |io_raw|
-        io = FilterIO.new(io_raw)
-        "über\n".encode('ISO-8859-1').chars.each do |expected|
-          actual = io.readchar
-          expect(actual).to eq expected
-          expect(actual.encoding.name).to eq 'ISO-8859-1'
-        end
-      end
-    end
-
-    it 'converts ISO-8859-1 to UTF-8 using `read`' do
-      with_iso8859_1_test_file 'UTF-8' do |io_raw|
-        io = FilterIO.new(io_raw)
-        expect(io.read(2)).to eq 'ü'.force_encoding('ASCII-8BIT')
-        expect(io.read(2).encoding.name).to eq 'ASCII-8BIT'
-      end
-    end
-
-    it 'converts ISO-8859-1 to raw using `read`' do
-      with_iso8859_1_test_file nil do |io_raw|
-        io = FilterIO.new(io_raw)
-        expect(io.read(1)).to eq 'ü'.encode('ISO-8859-1').force_encoding('ASCII-8BIT')
-        expect(io.read(2).encoding.name).to eq 'ASCII-8BIT'
-      end
-    end
-
-    it 'converts ISO-8859-1 to UTF-8 using `lines`' do
-      with_iso8859_1_test_file 'UTF-8' do |io_raw|
-        io = FilterIO.new(io_raw)
-        expected = ["über\n", 'Résumé']
-        actual = io.lines.to_a
-        expect(actual).to eq expected
-        expect(actual[0].encoding.name).to eq 'UTF-8'
-      end
-    end
-
-    it 'converts ISO-8859-1 to raw using `lines`' do
-      with_iso8859_1_test_file nil do |io_raw|
-        io = FilterIO.new(io_raw)
-        expected = ["über\n", 'Résumé'].map { |str| str.encode('ISO-8859-1') }
-        actual = io.lines.to_a
-        expect(actual).to eq expected
-        expect(actual[0].encoding.name).to eq 'ISO-8859-1'
-      end
-    end
-
-    it 'converts ISO-8859-1 to UTF-8 via a block' do
-      [1, 2, nil].each do |block_size|
-        expected = "über\nrésumé"
-        with_iso8859_1_test_file 'UTF-8' do |io_raw|
-          io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
-            if state.bof?
-              expect(data[0]).to eq 'ü'
-            end
-            expect(data.encoding.name).to eq 'UTF-8'
-            data.downcase
-          end
-          expect(io.readchar).to eq 'ü'
-          expect(io.gets.encoding.name).to eq 'UTF-8'
-          expect(io.read(4)).to eq 'rés'.force_encoding('ASCII-8BIT')
-          str = io.gets
-          expect(str).to eq 'umé'
-          expect(str.encoding.name).to eq 'UTF-8'
-        end
-      end
-    end
-
-    it 'converts ISO-8859-1 to raw via a block' do
-      [1, 2, nil].each do |block_size|
-        expected = "über\nrésumé".encode('ISO-8859-1')
-        with_iso8859_1_test_file 'ISO-8859-1' do |io_raw|
-          io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
-            if state.bof?
-              expect(data[0]).to eq 'ü'.encode('ISO-8859-1')
-            end
-            expect(data.encoding.name).to eq 'ISO-8859-1'
-            data.downcase
-          end
-          expect(io.readchar).to eq 'ü'.encode('ISO-8859-1')
-          expect(io.gets.encoding.name).to eq 'ISO-8859-1'
-          expect(io.read(3)).to eq 'rés'.encode('ISO-8859-1').force_encoding('ASCII-8BIT')
-          str = io.gets
-          expect(str).to eq 'umé'.encode('ISO-8859-1')
-          expect(str.encoding.name).to eq 'ISO-8859-1'
-        end
-      end
-    end
-
-    it 'supports a block returning mix of UTF-8 and ASCII-8BIT' do
-      input = "X\xE2\x80\x94Y\xe2\x80\x99"
-      input.force_encoding 'ASCII-8BIT'
-      io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
-        data.force_encoding data[0] == 'Y' ? 'UTF-8' : 'ASCII-8BIT'
-        data
-      end
-      expect(io.read).to eq input
-    end
+    expect(io.read).to eq input
   end
 
   it 'supports `read`' do
@@ -764,7 +760,7 @@ describe FilterIO do
 
   it 'can read from GzipReader stream' do
     input = "über résumé"
-    input.force_encoding 'ASCII-8BIT' if input.respond_to? :force_encoding
+    input.force_encoding 'ASCII-8BIT'
     buffer = StringIO.new
     out = Zlib::GzipWriter.new buffer
     out.write input
