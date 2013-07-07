@@ -661,6 +661,13 @@ describe FilterIO do
     }.to raise_error Errno::EINVAL
   end
 
+  it 'errors if `seek` is called with invalid whence' do
+    io = FilterIO.new(StringIO.new("abcdef"))
+    expect {
+      io.seek(0, 42)
+    }.to raise_error Errno::EINVAL
+  end
+
   it 'raises EOF if block requests more data at EOF' do
     input = "foo"
     [2,3,6].each do |block_size|
