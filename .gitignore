@@ -1,4 +1,4 @@
-*.gemspec
+Gemfile.lock
 pkg
 coverage
 .bundle
