@@ -1,22 +1,20 @@
 # -*- coding: utf-8 -*-
 
-require 'test_helper'
+require 'spec_helper'
 require 'stringio'
 require 'tempfile'
 require 'zlib'
 
-class FilterIOTest < ActiveSupport::TestCase
-  
-  def assert_equal_reference_io(input)
-    
+describe FilterIO do
+  def matches_reference_io_behaviour(input)
     expected_io = StringIO.new(input)
     actual_io = FilterIO.new(StringIO.new(input))
-    
+
     results = [expected_io, actual_io].map do |io|
       results = []
       errors = []
       positions = []
-      
+
       # call the block repeatedly until we get to EOF
       # and once more at the end to check what happens at EOF
       one_more_time = [true]
@@ -31,78 +29,77 @@ class FilterIOTest < ActiveSupport::TestCase
         positions << io.pos
         raise 'Too many iterations' if results.size > 100
       end
-      
+
       [results, errors, positions]
     end
-    
+
     # compare the filtered output against the reference
     results[0].zip(results[1]).each do |expected, actual|
-      assert_equal expected, actual
+      expect(actual).to eq expected
     end
-    
   end
-  
-  test "empty source" do
+
+  it 'works with an empty source' do
     io = FilterIO.new(StringIO.new(''))
-    assert_true io.bof?
+    expect(io.bof?).to be_true
     io = FilterIO.new(StringIO.new(''))
-    assert_true io.eof?
+    expect(io.eof?).to be_true
     io = FilterIO.new(StringIO.new(''))
-    assert_raise EOFError do
+    expect {
       io.readchar
-    end
+    }.to raise_error EOFError
   end
-  
-  test "simple eof" do
+
+  it 'supports `eof?`' do
     io = FilterIO.new(StringIO.new('x'))
-    assert_false io.eof?
-    assert_equal 'x', io.readchar.chr
-    assert_true io.eof?
-    assert_equal '', io.read
-    assert_equal nil, io.read(8)
+    expect(io.eof?).to be_false
+    expect(io.readchar.chr).to eq 'x'
+    expect(io.eof?).to be_true
+    expect(io.read).to eq ''
+    expect(io.read(8)).to eq nil
   end
-  
-  test "simple bof" do
+
+  it 'supports `bof?`' do
     io = FilterIO.new(StringIO.new('x'))
-    assert_true io.bof?
-    assert_equal 'x', io.readchar.chr
-    assert_false io.bof?
+    expect(io.bof?).to be_true
+    expect(io.readchar.chr).to eq 'x'
+    expect(io.bof?).to be_false
   end
-  
-  test "unicode readchar" do
-    assert_equal_reference_io('Résume') { |io| io.readchar }
+
+  it 'can `readchar` with unicode characters' do
+    matches_reference_io_behaviour('Résume') { |io| io.readchar }
   end
-  
-  test "unicode read" do
+
+  it 'can `read` with unicode characters' do
     (1..3).each do |read_size|
-      assert_equal_reference_io('Résume') { |io| io.read read_size }
+      matches_reference_io_behaviour('Résume') { |io| io.read read_size }
     end
   end
-  
-  test "unicode read all" do
-    assert_equal_reference_io('Résume') { |io| io.read }
+
+  it 'can `read` with unicode characters' do
+    matches_reference_io_behaviour('Résume') { |io| io.read }
   end
-  
-  test "unicode gets" do
-    assert_equal_reference_io("über\nrésumé") { |io| io.gets }
+
+  it 'can `gets` with unicode characters' do
+    matches_reference_io_behaviour("über\nrésumé") { |io| io.gets }
   end
-  
-  test "unicode in block" do
+
+  it 'can filter unicode characters' do
     input = 'Résumé Test'
     expected = 'résumé test'
     [2, nil].each do |block_size|
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) { |data| data.downcase }
       actual = io.read
-      assert_equal expected, actual
+      expect(actual).to eq expected
     end
   end
-  
-  test "should not buffer forever on bad encoding" do
+
+  it 'does not buffer forever with bad encoding' do
     input = "123\xc3\xc34567890"
     block_count = 0
     io = FilterIO.new(StringIO.new(input), :block_size => 2) do |data|
       block_count += 1
-      assert_operator data.size, :<=, 6
+      expect(data.size).to be <= 6
       data
     end
     actual = io.read
@@ -110,12 +107,11 @@ class FilterIOTest < ActiveSupport::TestCase
       input.force_encoding 'ASCII-8BIT'
       actual.force_encoding 'ASCII-8BIT'
     end
-    assert_equal input, actual
-    assert_operator block_count, :>=, 3
+    expect(actual).to eq input
+    expect(block_count).to be >= 3
   end
-  
+
   if IO.method_defined? :external_encoding
-    
     def with_iso8859_1_test_file(internal_encoding)
       Tempfile.open 'filter_io' do |tempfile|
         File.open(tempfile.path, 'wb') do |io|
@@ -126,190 +122,197 @@ class FilterIOTest < ActiveSupport::TestCase
         end
       end
     end
-    
-    test "ISO-8859-1 sanity check to UTF-8" do
+
+    it 'converts ISO-8859-1 to UTF-8 using `gets`' do
       with_iso8859_1_test_file 'UTF-8' do |io_raw|
-        assert_equal 'ü', io_raw.readchar
-        assert_equal "ber\n", io_raw.gets
+        expect(io_raw.readchar).to eq 'ü'
+        expect(io_raw.gets).to eq "ber\n"
         str = io_raw.gets
-        assert_equal 'résumé', str.downcase
-        assert_equal 'UTF-8', str.encoding.name
+        expect(str.downcase).to eq 'résumé'
+        expect(str.encoding.name).to eq 'UTF-8'
       end
     end
-    
-    test "ISO-8859-1 sanity check raw" do
+
+    it 'converts ISO-8859-1 to raw using `gets`' do
       with_iso8859_1_test_file nil do |io_raw|
-        assert_equal 'ü'.encode('ISO-8859-1'), io_raw.readchar
-        assert_equal "ber\n", io_raw.gets
+        expect(io_raw.readchar).to eq 'ü'.encode('ISO-8859-1')
+        expect(io_raw.gets).to eq "ber\n"
         str = io_raw.gets
-        assert_equal 'résumé'.encode('ISO-8859-1'), str.downcase
-        assert_equal 'ISO-8859-1', str.encoding.name
+        expect(str.downcase).to eq 'résumé'.encode('ISO-8859-1')
+        expect(str.encoding.name).to eq 'ISO-8859-1'
       end
     end
-    
-    test "iso-8859-1 readchar to UTF-8" do
+
+    it 'converts ISO-8859-1 to UTF-8 using `readchar`' do
       with_iso8859_1_test_file 'UTF-8' do |io_raw|
         io = FilterIO.new(io_raw)
         "über\n".chars.each do |expected|
           actual = io.readchar
-          assert_equal expected, actual
-          assert_equal 'UTF-8', actual.encoding.name
+          expect(actual).to eq expected
+          expect(actual.encoding.name).to eq 'UTF-8'
         end
       end
     end
-    
-    test "iso-8859-1 readchar raw" do
+
+    it 'converts ISO-8859-1 to raw using `readchar`' do
       with_iso8859_1_test_file nil do |io_raw|
         io = FilterIO.new(io_raw)
         "über\n".encode('ISO-8859-1').chars.each do |expected|
           actual = io.readchar
-          assert_equal expected, actual
-          assert_equal 'ISO-8859-1', actual.encoding.name
+          expect(actual).to eq expected
+          expect(actual.encoding.name).to eq 'ISO-8859-1'
         end
       end
     end
-    
-    test "iso-8859-1 read to UTF-8" do
+
+    it 'converts ISO-8859-1 to UTF-8 using `read`' do
       with_iso8859_1_test_file 'UTF-8' do |io_raw|
         io = FilterIO.new(io_raw)
-        assert_equal 'ü'.force_encoding('ASCII-8BIT'), io.read(2)
-        assert_equal 'ASCII-8BIT', io.read(2).encoding.name
+        expect(io.read(2)).to eq 'ü'.force_encoding('ASCII-8BIT')
+        expect(io.read(2).encoding.name).to eq 'ASCII-8BIT'
       end
     end
-    
-    test "iso-8859-1 read raw" do
+
+    it 'converts ISO-8859-1 to raw using `read`' do
       with_iso8859_1_test_file nil do |io_raw|
         io = FilterIO.new(io_raw)
-        assert_equal 'ü'.encode('ISO-8859-1').force_encoding('ASCII-8BIT'), io.read(1)
-        assert_equal 'ASCII-8BIT', io.read(2).encoding.name
+        expect(io.read(1)).to eq 'ü'.encode('ISO-8859-1').force_encoding('ASCII-8BIT')
+        expect(io.read(2).encoding.name).to eq 'ASCII-8BIT'
       end
     end
-    
-    test "iso-8859-1 lines to UTF-8" do
+
+    it 'converts ISO-8859-1 to UTF-8 using `lines`' do
       with_iso8859_1_test_file 'UTF-8' do |io_raw|
         io = FilterIO.new(io_raw)
         expected = ["über\n", 'Résumé']
         actual = io.lines.to_a
-        assert_equal expected, actual
-        assert_equal 'UTF-8', actual[0].encoding.name
+        expect(actual).to eq expected
+        expect(actual[0].encoding.name).to eq 'UTF-8'
       end
     end
-    
-    test "iso-8859-1 lines raw" do
+
+    it 'converts ISO-8859-1 to raw using `lines`' do
       with_iso8859_1_test_file nil do |io_raw|
         io = FilterIO.new(io_raw)
         expected = ["über\n", 'Résumé'].map { |str| str.encode('ISO-8859-1') }
         actual = io.lines.to_a
-        assert_equal expected, actual
-        assert_equal 'ISO-8859-1', actual[0].encoding.name
+        expect(actual).to eq expected
+        expect(actual[0].encoding.name).to eq 'ISO-8859-1'
       end
     end
-    
-    test "iso-8859-1 block to UTF-8" do
+
+    it 'converts ISO-8859-1 to UTF-8 via a block' do
       [1, 2, nil].each do |block_size|
         expected = "über\nrésumé"
         with_iso8859_1_test_file 'UTF-8' do |io_raw|
           io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
-            assert_equal 'ü', data[0] if state.bof?
-            assert_equal 'UTF-8', data.encoding.name
+            if state.bof?
+              expect(data[0]).to eq 'ü'
+            end
+            expect(data.encoding.name).to eq 'UTF-8'
             data.downcase
           end
-          assert_equal 'ü', io.readchar
-          assert_equal 'UTF-8', io.gets.encoding.name
-          assert_equal 'rés'.force_encoding('ASCII-8BIT'), io.read(4)
+          expect(io.readchar).to eq 'ü'
+          expect(io.gets.encoding.name).to eq 'UTF-8'
+          expect(io.read(4)).to eq 'rés'.force_encoding('ASCII-8BIT')
           str = io.gets
-          assert_equal 'umé', str
-          assert_equal 'UTF-8', str.encoding.name
+          expect(str).to eq 'umé'
+          expect(str.encoding.name).to eq 'UTF-8'
         end
       end
     end
-    
-    test "iso-8859-1 block raw" do
+
+    it 'converts ISO-8859-1 to raw via a block' do
       [1, 2, nil].each do |block_size|
         expected = "über\nrésumé".encode('ISO-8859-1')
         with_iso8859_1_test_file 'ISO-8859-1' do |io_raw|
           io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
-            assert_equal 'ü'.encode('ISO-8859-1'), data[0] if state.bof?
-            assert_equal 'ISO-8859-1', data.encoding.name
+            if state.bof?
+              expect(data[0]).to eq 'ü'.encode('ISO-8859-1')
+            end
+            expect(data.encoding.name).to eq 'ISO-8859-1'
             data.downcase
           end
-          assert_equal 'ü'.encode('ISO-8859-1'), io.readchar
-          assert_equal 'ISO-8859-1', io.gets.encoding.name
-          assert_equal 'rés'.encode('ISO-8859-1').force_encoding('ASCII-8BIT'), io.read(3)
+          expect(io.readchar).to eq 'ü'.encode('ISO-8859-1')
+          expect(io.gets.encoding.name).to eq 'ISO-8859-1'
+          expect(io.read(3)).to eq 'rés'.encode('ISO-8859-1').force_encoding('ASCII-8BIT')
           str = io.gets
-          assert_equal 'umé'.encode('ISO-8859-1'), str
-          assert_equal 'ISO-8859-1', str.encoding.name
+          expect(str).to eq 'umé'.encode('ISO-8859-1')
+          expect(str.encoding.name).to eq 'ISO-8859-1'
         end
       end
     end
-    
-    test "block returning mix of UTF-8 and ASCII-8BIT" do
+
+    it 'supports a block returning mix of UTF-8 and ASCII-8BIT' do
       input = "X\xE2\x80\x94Y\xe2\x80\x99"
       input.force_encoding 'ASCII-8BIT'
       io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
         data.force_encoding data[0] == 'Y' ? 'UTF-8' : 'ASCII-8BIT'
         data
       end
-      assert_equal input, io.read
+      expect(io.read).to eq input
     end
-    
   end
-  
-  test "read" do
+
+  it 'supports `read`' do
     input = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit'
     io_reference = StringIO.new(input)
     io = FilterIO.new(StringIO.new(input))
     [10,5,4,8,7,nil,nil].each do |read_len|
-      assert_equal io_reference.read(read_len), io.read(read_len)
-      assert_equal io_reference.pos, io.pos
+      expect(io.read(read_len)).to eq io_reference.read(read_len)
+      expect(io.pos).to eq io_reference.pos
       if read_len
-        assert_equal io_reference.readchar, io.readchar
+        expect(io.readchar).to eq io_reference.readchar
       else
-        assert_raise(EOFError) { io_reference.readchar }
-        assert_raise(EOFError) { io.readchar }
+        expect {
+          io_reference.readchar
+        }.to raise_error EOFError
+        expect {
+          io.readchar
+        }.to raise_error EOFError
       end
-      assert_equal io_reference.pos, io.pos
-      assert_equal io_reference.eof?, io.eof?
+      expect(io.pos).to eq io_reference.pos
+      expect(io.eof?).to eq io_reference.eof?
     end
-    assert_equal io_reference.read, io.read
-    assert_equal io_reference.read(4), io.read(4)
-    assert_true io_reference.eof?
-    assert_true io.eof?
+    expect(io.read).to eq io_reference.read
+    expect(io.read(4)).to eq io_reference.read(4)
+    expect(io_reference.eof?).to be_true
+    expect(io.eof?).to be_true
   end
-  
-  test "read zero before eof" do
+
+  it 'returns empty from read(0) before EOF' do
     io = FilterIO.new(StringIO.new('foo'))
-    assert_equal '', io.read(0)
-    assert_equal 0, io.pos
-    assert_false io.eof?
+    expect(io.read(0)).to eq ''
+    expect(io.pos).to eq 0
+    expect(io.eof?).to be_false
   end
-  
-  test "read zero at eof" do
+
+  it 'returns empty from read(0) at EOF' do
     io = FilterIO.new(StringIO.new(''))
-    assert_equal '', io.read(0)
-    assert_equal 0, io.pos
-    assert_true io.eof?
+    expect(io.read(0)).to eq ''
+    expect(io.pos).to eq 0
+    expect(io.eof?).to be_true
   end
-  
-  test "read negative" do
+
+  it 'errors if attempting to read negative' do
     io = FilterIO.new(StringIO.new('foo'))
-    assert_equal 'fo', io.read(2)
-    assert_raise ArgumentError do
+    expect(io.read(2)).to eq 'fo'
+    expect {
       io.read(-1)
-    end
-    assert_equal 2, io.pos
+    }.to raise_error ArgumentError
+    expect(io.pos).to eq 2
   end
-  
-  test "simple block" do
+
+  it 'allows filtering of input with a block' do
     input = 'foo bar'
     expected = 'FOO BAR'
     io = FilterIO.new(StringIO.new(input)) do |data|
       data.upcase
     end
-    assert_equal expected, io.read
+    expect(io.read).to eq expected
   end
-  
-  test "block bof and eof" do
+
+  it 'passes BOF and EOF state to the block' do
     input = "Test String"
     expected = ">>>*Test** Str**ing*<<<"
     io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
@@ -318,10 +321,10 @@ class FilterIOTest < ActiveSupport::TestCase
       data = "#{data}<<<" if state.eof?
       data
     end
-    assert_equal expected, io.read
+    expect(io.read).to eq expected
   end
-  
-  test "mutate before NeedMoreData shouldn't affect next block call" do
+
+  it 'passes a copy of the data to block (to prevent mutation bugs)' do
     input = "foobar"
     expected = [
       ['fo', true],
@@ -335,29 +338,29 @@ class FilterIOTest < ActiveSupport::TestCase
       raise FilterIO::NeedMoreData if data == 'FO'
       data
     end
-    assert_equal input.upcase, io.read
-    assert_equal expected, actual
+    expect(io.read).to eq input.upcase
+    expect(actual).to eq expected
   end
-  
-  test "Symbol#to_proc" do
+
+  it 'can be used with Symbol#to_proc' do
     input = 'foo bar'
     expected = 'FOO BAR'
     io = FilterIO.new StringIO.new(input), &:upcase
-    assert_equal expected, io.read
+    expect(io.read).to eq expected
   end
-  
-  test "block size for read(nil)" do
+
+  it 'allows custom block size when used with read(nil)' do
     [1,4,7,9,13,30].each do |block_size|
       input = ('A'..'Z').to_a.join
       expected = input.chars.enum_for(:each_slice, block_size).to_a.map(&:join).map { |x| "[#{x}]" }.join
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data|
         "[#{data}]"
       end
-      assert_equal expected, io.read
+      expect(io.read).to eq expected
     end
   end
-  
-  test "block size for gets/readline" do
+
+  it 'allows custom block size when used with gets/readline' do
     [1,4,7,9,13,30].each do |block_size|
       input = "ABCDEFG\nHJIKLMNOP\n"
       expected = input.chars.enum_for(:each_slice, block_size).to_a.map(&:join).map { |x| "[#{x}]" }.join.lines.to_a
@@ -365,82 +368,80 @@ class FilterIOTest < ActiveSupport::TestCase
         "[#{data}]"
       end
       actual = io.readlines
-      assert_equal expected, actual
+      expect(actual).to eq expected
     end
   end
-  
-  test "block size different to read size" do
+
+  it 'allows block size to be different multiple from the input size' do
     (1..5).each do |block_size|
       input_str = ('A'..'Z').to_a.join
       expected_str = input_str.chars.enum_for(:each_slice, block_size).map { |x| "[#{x.join}]" }.join
       (1..5).each do |read_size|
-        
         expected = StringIO.new(expected_str)
         actual = FilterIO.new(StringIO.new(input_str), :block_size => block_size) do |data|
           "[#{data}]"
         end
-        
+
         until expected.eof?
-          assert_equal expected.read(read_size), actual.read(read_size)
-          assert_equal expected.pos, actual.pos
+          expect(actual.read(read_size)).to eq expected.read(read_size)
+          expect(actual.pos).to eq expected.pos
         end
-        assert_equal expected.eof?, actual.eof?
-        
+        expect(actual.eof?).to eq expected.eof?
       end
     end
   end
-  
-  test "rewind pass through" do
+
+  it 'allows the filtered I/O to be rewound' do
     io = FilterIO.new(StringIO.new('foo bar baz'))
-    assert_equal 'foo b', io.read(5)
-    assert_equal 'ar b', io.read(4)
+    expect(io.read(5)).to eq 'foo b'
+    expect(io.read(4)).to eq 'ar b'
     io.rewind
-    assert_equal 'foo', io.read(3)
-    assert_equal ' ', io.readchar.chr
+    expect(io.read(3)).to eq 'foo'
+    expect(io.readchar.chr).to eq ' '
     io.rewind
-    assert_equal 'f', io.readchar.chr
-    assert_equal 'oo', io.read(2)
+    expect(io.readchar.chr).to eq 'f'
+    expect(io.read(2)).to eq 'oo'
   end
-  
-  test "rewind resets buffer" do
+
+  it 're-reads from the source when rewound (resets buffer)' do
     str = 'foobar'
     io = FilterIO.new(StringIO.new(str))
-    assert_equal 'foo', io.read(3)
+    expect(io.read(3)).to eq 'foo'
     str.replace 'FooBar'
-    assert_equal 'Bar', io.read(3)
+    expect(io.read(3)).to eq 'Bar'
     io.rewind
-    assert_equal 'Foo', io.read(3)
+    expect(io.read(3)).to eq 'Foo'
   end
-  
-  test "rewind with block" do
+
+  it 'can be rewound with block' do
     input = 'abcdefghij'
     expected = input[1..-1]
     io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
       data = data[1..-1] if state.bof?
       data
     end
-    assert_equal 'bc', io.read(2)
-    assert_equal 'defg', io.read(4)
+    expect(io.read(2)).to eq 'bc'
+    expect(io.read(4)).to eq 'defg'
     io.rewind
-    assert_equal 'bc', io.read(2)
-    assert_equal 'defg', io.read(4)
+    expect(io.read(2)).to eq 'bc'
+    expect(io.read(4)).to eq 'defg'
   end
-  
-  test "ungetc" do
+
+  it 'supports `ungetc`' do
     input = 'foobar'
     io = FilterIO.new(StringIO.new(input))
-    assert_equal 'foo', io.read(3)
+    expect(io.read(3)).to eq 'foo'
     io.ungetc 'x'
     io.ungetc 'y'[0].ord
-    assert_equal 'yxb', io.read(3)
+    expect(io.read(3)).to eq 'yxb'
     (1..5).each do |i|
       io.ungetc i.to_s
     end
-    assert_equal '54321ar', io.read
-    assert_equal 'foobar', input
+    expect(io.read).to eq '54321ar'
+    expect(input).to eq 'foobar'
   end
-  
-  test "need more data" do
+
+  it 'allows block to request more data before processing a block' do
     input = '1ab123456cde78f9ghij0'
     expected = input.gsub(/\d+/, '[\0]')
     (1..5).each do |block_size|
@@ -448,15 +449,17 @@ class FilterIOTest < ActiveSupport::TestCase
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data, state|
         expected_size += block_size
         raise FilterIO::NeedMoreData if data =~ /\d\z/ && !state.eof?
-        assert_equal expected_size, data.size unless state.eof?
+        unless state.eof?
+          expect(data.size).to eq expected_size
+        end
         expected_size = 0
         data.gsub(/\d+/, '[\0]')
       end
-      assert_equal expected, io.read
+      expect(io.read).to eq expected
     end
   end
-  
-  test "line ending normalisation" do
+
+  it 'passes a line ending normalisation example' do
     input = "This\r\nis\r\ra\n\ntest\n\r\n\nstring\r\r\n.\n"
     expected = "This\nis\n\na\n\ntest\n\n\nstring\n\n.\n"
     (1..5).each do |block_size|
@@ -464,28 +467,28 @@ class FilterIOTest < ActiveSupport::TestCase
         raise FilterIO::NeedMoreData if data =~ /[\r\n]\z/ && !state.eof?
         data.gsub(/\r\n|\r|\n/, "\n")
       end
-      assert_equal expected, io.read
+      expect(io.read).to eq expected
     end
   end
-  
-  test "dropping characters" do
+
+  it 'passes a character dropping example' do
     input = "ab1cde23f1g4hijklmno567pqr8stu9vw0xyz"
     expected = input.gsub(/\d+/, '')
     (1..5).each do |block_size|
       io = FilterIO.new(StringIO.new(input), :block_size => block_size) do |data|
         data.gsub(/\d+/, '')
       end
-      assert_equal 0, io.pos
-      assert_equal expected, io.read
-      assert_equal expected.size, io.pos
+      expect(io.pos).to eq 0
+      expect(io.read).to eq expected
+      expect(io.pos).to eq expected.size
     end
   end
-  
-  test "getc" do
-    assert_equal_reference_io('foo') { |io| io.getc }
+
+  it 'supports `getc`' do
+    matches_reference_io_behaviour('foo') { |io| io.getc }
   end
-  
-  test "gets default" do
+
+  it 'supports `gets` with no args' do
     [
       "",
       "x",
@@ -493,11 +496,11 @@ class FilterIOTest < ActiveSupport::TestCase
       "foo\nbar",
       "foo\nbar\nbaz\n"
     ].each do |input|
-      assert_equal_reference_io(input) { |io| io.gets }
+      matches_reference_io_behaviour(input) { |io| io.gets }
     end
   end
-  
-  test "gets all" do
+
+  it 'supports `gets` for entire content' do
     [
       "",
       "x",
@@ -505,11 +508,11 @@ class FilterIOTest < ActiveSupport::TestCase
       "foo\nbar",
       "foo\nbar\nbaz\n"
     ].each do |input|
-      assert_equal_reference_io(input) { |io| io.gets(nil) }
+      matches_reference_io_behaviour(input) { |io| io.gets(nil) }
     end
   end
-  
-  test "gets separator" do
+
+  it 'supports `gets` with a separator' do
     [
       "",
       "x",
@@ -518,18 +521,18 @@ class FilterIOTest < ActiveSupport::TestCase
       "abcxyz",
     ].each do |input|
       ["\r", "x"].each do |sep_string|
-        assert_equal_reference_io(input) { |io| io.gets(sep_string) }
+        matches_reference_io_behaviour(input) { |io| io.gets(sep_string) }
       end
     end
   end
-  
-  test "gets 2 char separator" do
+
+  it 'supports `gets` with a two character seperator' do
     ["o", "oo"].each do |sep_string|
-      assert_equal_reference_io("foobarhelloworld") { |io| io.gets(sep_string) }
+      matches_reference_io_behaviour("foobarhelloworld") { |io| io.gets(sep_string) }
     end
   end
-  
-  test "gets paragraph" do
+
+  it 'supports `gets` when retrieving whole paragraphs' do
     {
       "" => [],
       "x" => ['x'],
@@ -550,119 +553,115 @@ class FilterIOTest < ActiveSupport::TestCase
       while para = io.gets('')
         actual << para
       end
-      assert_equal expected, actual
+      expect(actual).to eq expected
     end
   end
-  
-  test "readline" do
+
+  it 'supports `readline`' do
     [
       "foo\nbar\n",
       "foo\nbar\nbaz"
     ].each do |input|
-      assert_equal_reference_io(input) { |io| io.readline }
-      assert_equal_reference_io(input) { |io| io.readline("o") }
+      matches_reference_io_behaviour(input) { |io| io.readline }
+      matches_reference_io_behaviour(input) { |io| io.readline("o") }
     end
   end
-  
-  test "readlines" do
+
+  it 'supports `readlines`' do
     [
       "foo\nbar\n",
       "foo\nbar\nbaz"
     ].each do |input|
-      assert_equal_reference_io(input) { |io| io.readlines }
-      assert_equal_reference_io(input) { |io| io.readlines("o") }
+      matches_reference_io_behaviour(input) { |io| io.readlines }
+      matches_reference_io_behaviour(input) { |io| io.readlines("o") }
     end
   end
-  
-  test "lines with block" do
+
+  it 'supports reading lines with both `lines` and `gets`' do
     io = FilterIO.new(StringIO.new("foo\nbar\nbaz"))
     expected = [ ["foo\n", "bar\n"], ["baz", nil] ]
     actual = []
     retval = io.lines do |line|
       actual << [line, io.gets]
     end
-    assert_equal io, retval
-    assert_equal expected, actual
+    expect(retval).to eq io
+    expect(actual).to eq expected
   end
-  
-  test "lines enumerator" do
+
+  it 'supports using `lines` as an eumerator' do
     io = FilterIO.new(StringIO.new("foo\nbar\nbaz"))
     e = io.lines
     expected = [ ["foo\n", "bar\n"], ["baz", nil] ]
     actual = e.map { |line| [line, io.gets] }
-    assert_equal expected, actual
+    expect(actual).to eq expected
   end
-  
-  test "seek set" do
-    
+
+  it 'supports `seek` with absolute positions' do
     io = FilterIO.new(StringIO.new("abcdef"))
-    
+
     # beginning
-    assert_equal 'a', io.readchar.chr
-    assert_equal 1, io.pos
+    expect(io.readchar.chr).to eq 'a'
+    expect(io.pos).to eq 1
     io.seek 0, IO::SEEK_SET
-    assert_equal 'a', io.readchar.chr
-    assert_equal 1, io.pos
-    
+    expect(io.readchar.chr).to eq 'a'
+    expect(io.pos).to eq 1
+
     # same position
     io.seek 1, IO::SEEK_SET
-    assert_equal 'b', io.readchar.chr
-    assert_equal 2, io.pos
-    
+    expect(io.readchar.chr).to eq 'b'
+    expect(io.pos).to eq 2
+
     # backwards fail
-    assert_raise Errno::EINVAL do
+    expect {
       io.seek 1, IO::SEEK_SET
-    end
-    assert_equal 'c', io.readchar.chr
-    assert_equal 3, io.pos
-    
+    }.to raise_error Errno::EINVAL
+    expect(io.readchar.chr).to eq 'c'
+    expect(io.pos).to eq 3
   end
-    
-  test "seek current" do
-    
+
+  it 'supports `seek` with relative positions' do
     io = FilterIO.new(StringIO.new("abcdef"))
-    
+
     # same pos
-    assert_equal 'ab', io.read(2)
-    assert_equal 2, io.pos
+    expect(io.read(2)).to eq 'ab'
+    expect(io.pos).to eq 2
     io.seek 0, IO::SEEK_CUR
-    assert_equal 2, io.pos
-    
+    expect(io.pos).to eq 2
+
     # backwards fail
-    assert_equal 'c', io.read(1)
-    assert_equal 3, io.pos
-    assert_raise Errno::EINVAL do
+    expect(io.read(1)).to eq 'c'
+    expect(io.pos).to eq 3
+    expect {
       io.seek(-1, IO::SEEK_CUR)
-    end
-    assert_equal 3, io.pos
-    
+    }.to raise_error Errno::EINVAL
+    expect(io.pos).to eq 3
+
     # forwards fail
-    assert_equal 3, io.pos
-    assert_raise Errno::EINVAL do
+    expect(io.pos).to eq 3
+    expect {
       io.seek(2, IO::SEEK_CUR)
-    end
-    assert_equal 3, io.pos
-    
+    }.to raise_error Errno::EINVAL
+    expect(io.pos).to eq 3
+
     # beginning
     io.seek(-io.pos, IO::SEEK_CUR)
-    assert_equal 0, io.pos
-    
+    expect(io.pos).to eq 0
   end
-  
-  test "seek end" do
+
+  it 'does not support `seek` relative to EOF' do
     io = FilterIO.new(StringIO.new("abcdef"))
-    assert_raise Errno::EINVAL do
+    expect {
       io.seek(0, IO::SEEK_END)
-    end
-    assert_raise Errno::EINVAL do
+    }.to raise_error Errno::EINVAL
+    expect {
       io.seek(6, IO::SEEK_END)
-    end
-    assert_raise Errno::EINVAL do
+    }.to raise_error Errno::EINVAL
+    expect {
       io.seek(-6, IO::SEEK_END)
-    end
+    }.to raise_error Errno::EINVAL
   end
-  
-  test "need more data at eof" do
+
+  it 'raises EOF if block requests more data at EOF' do
     input = "foo"
     [2,3,6].each do |block_size|
       [true, false].each do |always|
@@ -672,16 +671,16 @@ class FilterIOTest < ActiveSupport::TestCase
           raise FilterIO::NeedMoreData if state.eof? or always
           data
         end
-        assert_raise EOFError do
+        expect {
           io.readline
-        end
+        }.to raise_error EOFError
         expected_count = block_size < input.size ? 2 : 1
-        assert_equal expected_count, count
+        expect(count).to eq expected_count
       end
     end
   end
-  
-  test "unget via block" do
+
+  it 'supports returning unconsumed data from the block' do
     # get consecutive unique characters from a feed
     # this is similar to uniq(1) and STL's unique_copy
     input = "122234435"
@@ -696,16 +695,15 @@ class FilterIOTest < ActiveSupport::TestCase
         # return the matched character as data and re-buffer the rest
         [$&[0], $']
       end
-      assert_equal expected, io.read
+      expect(io.read).to eq expected
     end
   end
-  
-  test "get more data via unget" do
-    
+
+  it 'supports requesting of more data by returning all data as unused' do
     input = "foo\ntest\n\n12345\n678"
     expected = input.gsub(/^.*$/) { |x| "#{$&.size} #{$&}" }
     expected += "\n" unless expected =~ /\n\z/
-    
+
     block_count = 0
     io = FilterIO.new StringIO.new(input), :block_size => 2 do |data, state|
       block_count += 1
@@ -719,48 +717,45 @@ class FilterIOTest < ActiveSupport::TestCase
       [output, data]
     end
     actual = io.read
-    
-    assert_equal expected, actual
-    assert_operator block_count, :>=, 10
-    
+
+    expect(actual).to eq expected
+    expect(block_count).to be >= 10
   end
-  
-  test "close method" do
+
+  it 'supports `close`' do
     [2, 16].each do |block_size|
-      
       source_io = StringIO.new("foo\nbar\nbaz")
       filtered_io = FilterIO.new(source_io, :block_size => block_size, &:upcase)
-      
-      assert_equal "FOO\n", filtered_io.gets
-      
+
+      expect(filtered_io.gets).to eq "FOO\n"
+
       # close the filtered stream
       filtered_io.close
-      
+
       # both the filtered and source stream should be closed
-      assert_true source_io.closed?
-      assert_true filtered_io.closed?
-      
+      expect(source_io).to be_closed
+      expect(filtered_io).to be_closed
+
       # futher reads should raise an error
-      assert_raise IOError do
+      expect {
         filtered_io.gets
-      end
-      
+      }.to raise_error IOError
+
       # closing again should raise an error
-      assert_raise IOError do
+      expect {
         filtered_io.close
-      end
-      
+      }.to raise_error IOError
     end
   end
-  
-  test "should raise IO error if block returns nil" do
+
+  it 'raises an IO error if block returns nil' do
     io = FilterIO.new(StringIO.new("foo")) { |data| nil }
-    assert_raise IOError do
+    expect {
       io.read.to_a
-    end
+    }.to raise_error IOError
   end
-  
-  test "should be able to read from GzipReader stream" do
+
+  it 'can read from GzipReader stream' do
     input = "über résumé"
     input.force_encoding 'ASCII-8BIT' if input.respond_to? :force_encoding
     buffer = StringIO.new
@@ -769,9 +764,8 @@ class FilterIOTest < ActiveSupport::TestCase
     out.finish
     buffer.rewind
     io = Zlib::GzipReader.new(buffer)
-    
+
     io = FilterIO.new(io)
-    assert_equal input, io.read
+    expect(io.read).to eq input
   end
-  
 end
