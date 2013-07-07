@@ -758,9 +758,24 @@ describe FilterIO do
     }.to raise_error IOError
   end
 
-  it 'can read from GzipReader stream' do
+  it 'can read from GzipReader stream in raw' do
     input = "über résumé"
     input.force_encoding 'ASCII-8BIT'
+    buffer = StringIO.new
+    out = Zlib::GzipWriter.new buffer
+    out.write input
+    out.finish
+    buffer.rewind
+    io = Zlib::GzipReader.new(buffer, :internal_encoding => 'ASCII-8BIT')
+
+    io = FilterIO.new(io)
+    expect(io.readchar).to eq input[0]
+    expect(io.readchar).to eq input[1]
+    expect(io.read).to eq "ber résumé".force_encoding('ASCII-8BIT')
+  end
+
+  it 'can read from GzipReader stream in UTF-8' do
+    input = "über résumé"
     buffer = StringIO.new
     out = Zlib::GzipWriter.new buffer
     out.write input
@@ -769,6 +784,8 @@ describe FilterIO do
     io = Zlib::GzipReader.new(buffer)
 
     io = FilterIO.new(io)
-    expect(io.read).to eq input
+    expect(io.readchar).to eq "ü"
+    expect(io.readchar).to eq "b"
+    expect(io.read).to eq "er résumé"
   end
 end

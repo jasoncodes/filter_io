@@ -53,15 +53,28 @@ class FilterIO
     @io.closed?
   end
 
+  def default_encoding
+    unless @default_encoding
+      c = @io.getc
+      @io.ungetc c
+      @default_encoding = c.encoding
+    end
+    @default_encoding
+  end
+
   def internal_encoding
     if @io.respond_to?(:internal_encoding)
       @io.internal_encoding
+    else
+      default_encoding
     end
   end
 
   def external_encoding
     if @io.respond_to?(:external_encoding)
       @io.external_encoding
+    else
+      default_encoding
     end
   end
 
