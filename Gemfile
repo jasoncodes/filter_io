@@ -1,4 +1,4 @@
-source :gemcutter
+source 'https://rubygems.org/'
 
 gem 'jeweler'
 gem 'activesupport', '>=2.3.9'
