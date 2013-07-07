@@ -314,9 +314,8 @@ class FilterIO
     data.encode! internal_encoding if internal_encoding
 
     if data && @block
-      state = BlockState.new @io.pos == data.length, source_eof?
-      args = [data.dup, state]
-      args = args.first(@block.arity > 0 ? @block.arity : 1)
+      args = [data.dup]
+      args << BlockState.new(@io.pos == data.length, source_eof?) if @block.arity > 1
       data = @block.call(*args)
       raise IOError, 'Block returned nil' if data.nil?
     end

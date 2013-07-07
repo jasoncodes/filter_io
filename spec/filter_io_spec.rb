@@ -788,4 +788,14 @@ describe FilterIO do
     expect(io.readchar).to eq "b"
     expect(io.read).to eq "er résumé"
   end
+
+  it 'supports filtering from a pipe' do
+    read_io, write_io = IO::pipe
+    write_io.write 'test'
+    write_io.close
+    io = FilterIO.new read_io do |data|
+      data.upcase
+    end
+    expect(io.read).to eq 'TEST'
+  end
 end
