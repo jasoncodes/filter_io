@@ -215,8 +215,7 @@ class FilterIO
 
   def each_line(sep_string = $/)
     unless block_given?
-      klass = defined?(Enumerator) ? Enumerator : Enumerable::Enumerator
-      return klass.new(self, :each_line, sep_string)
+      return to_enum(:each_line, sep_string)
     end
     while line = gets(sep_string)
       yield line
