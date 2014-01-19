@@ -263,10 +263,12 @@ class FilterIO
   def buffer_data(block_size = nil)
     block_size ||= DEFAULT_BLOCK_SIZE
 
-    data = unless @buffer_raw.empty?
-     @buffer_raw.slice! 0, @buffer_raw.bytesize
+    if !@buffer_raw.empty?
+     data = @buffer_raw.slice! 0, @buffer_raw.bytesize
+    elsif data = @io.read(block_size)
+      data.force_encoding(external_encoding)
     else
-     @io.read(block_size) or return
+      return
     end
 
     initial_data_size = data.bytesize
@@ -282,7 +284,7 @@ class FilterIO
       end
     rescue NeedMoreData => e
       raise EOFError, 'end of file reached' if @io.eof?
-      data << @io.read(block_size)
+      data << @io.read(block_size).force_encoding(external_encoding)
       retry
     end
 
