@@ -244,7 +244,7 @@ describe FilterIO do
     input = "\x49\xE2\x99\xA5\x4E\x59\x49\xE2\x99\xA5\x4E\x59".force_encoding('UTF-8')
 
     io = FilterIO.new(StringIO.new(input), :block_size => 6) do |data, state|
-     [data.byteslice(0), data.byteslice(1..-1)]
+      [data.byteslice(0).force_encoding('UTF-8'), data.byteslice(1..-1).force_encoding('UTF-8')]
     end
 
     expect(io.read).to eq input
