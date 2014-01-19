@@ -240,6 +240,16 @@ describe FilterIO do
     end
   end
 
+  it 'supports reading multibyte characters overlapping block boundaries' do
+    input = "\x49\xE2\x99\xA5\x4E\x59\x49\xE2\x99\xA5\x4E\x59".force_encoding('UTF-8')
+
+    io = FilterIO.new(StringIO.new(input), :block_size => 6) do |data, state|
+     [data.byteslice(0), data.byteslice(1..-1)]
+    end
+
+    expect(io.read).to eq input
+  end
+
   it 'supports a block returning mix of UTF-8 and ASCII-8BIT' do
     input = "X\xE2\x80\x94Y\xe2\x80\x99"
     input.force_encoding 'ASCII-8BIT'
