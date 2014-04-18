@@ -98,7 +98,7 @@ class FilterIO
     nil
   end
 
-  def read(length = nil)
+  def read(length = nil, buffer = nil)
     raise ArgumentError if length && length < 0
     return '' if length == 0
 
@@ -116,7 +116,7 @@ class FilterIO
       else
         length
       end
-      data = pop_bytes read_length
+      data = pop_bytes read_length, buffer
       @pos += data.bytesize
       if length.nil?
         data.force_encoding external_encoding if external_encoding
@@ -249,15 +249,19 @@ class FilterIO
     str
   end
 
-  def pop_bytes(count)
-    data = begin
+  def pop_bytes(count, output_buffer = nil)
+    begin
       org_encoding = @buffer.encoding
       @buffer.force_encoding 'ASCII-8BIT'
-      @buffer.slice!(0, count)
+      data = @buffer.slice!(0, count)
+      if output_buffer
+        output_buffer.replace data
+      else
+        data
+      end
     ensure
       @buffer.force_encoding org_encoding
     end
-    data
   end
 
   def buffer_data(block_size = nil)

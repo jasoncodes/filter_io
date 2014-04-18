@@ -309,6 +309,14 @@ describe FilterIO do
     expect(io.pos).to eq 2
   end
 
+  it 'supports reading into user buffer' do
+    io = FilterIO.new(StringIO.new('foo bar'))
+    buffer = 'abcdef'
+    result = io.read(3, buffer)
+    expect(result.object_id).to eq buffer.object_id
+    expect(result).to eq 'foo'
+  end
+
   it 'allows filtering of input with a block' do
     input = 'foo bar'
     expected = 'FOO BAR'
@@ -807,5 +815,19 @@ describe FilterIO do
       data.upcase
     end
     expect(io.read).to eq 'TEST'
+  end
+
+  it 'supports IO.copy_stream' do
+    input = StringIO.new "Test"
+    output = StringIO.new
+
+    filtered_input = FilterIO.new input do |data|
+      data.upcase
+    end
+
+    IO.copy_stream(filtered_input, output)
+
+    output.rewind
+    expect(output.read).to eq 'TEST'
   end
 end
