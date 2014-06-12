@@ -540,6 +540,44 @@ describe FilterIO do
     end
   end
 
+  it 'supports `get` with a limit' do
+    [
+      "",
+      "x",
+      "foo\nbar\rbaz\n",
+      "abc\rdef\rghi\r",
+      "über",
+    ].each do |input|
+      [1, 2, 3, 4, 10].each do |limit|
+        matches_reference_io_behaviour(input) { |io| io.gets(limit) }
+      end
+    end
+    # TODO: test zero limit
+  end
+
+  it 'supports `gets` with a separator and a limit' do
+    [
+      "",
+      "x",
+      "foo\nbar\rbaz\n",
+      "abc\rdef\rghi\r",
+      "über",
+    ].each do |input|
+      ["\r", "x"].each do |sep_string|
+        [1, 2, 3, 4, 10].each do |limit|
+          matches_reference_io_behaviour(input) { |io| io.gets(sep_string, limit) }
+        end
+      end
+    end
+    # TODO: test zero limit
+  end
+
+  it 'errors when `get` is passed more than two args' do
+    expect {
+      FilterIO.new(StringIO.new).gets(1,2,3)
+    }.to raise_error ArgumentError
+  end
+
   it 'supports `gets` with a two character seperator' do
     ["o", "oo"].each do |sep_string|
       matches_reference_io_behaviour("foobarhelloworld") { |io| io.gets(sep_string) }

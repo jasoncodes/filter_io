@@ -169,7 +169,22 @@ class FilterIO
     @buffer = char + @buffer
   end
 
-  def gets(sep_string = $/)
+  def gets(*args)
+    sep_string, limit = case args.size
+    when 0
+      [$/, nil]
+    when 1
+      if args.first.is_a?(Integer)
+        [$/, args.first]
+      else
+        [args.first, nil]
+      end
+    when 2
+      args
+    else
+      raise ArgumentError
+    end
+
     return nil if eof?
     return read if sep_string.nil?
 
@@ -189,21 +204,29 @@ class FilterIO
     end
 
     # fill the buffer until it contains the separator sequence
-    until source_eof? or @buffer.index(sep_string)
+    until source_eof? || find_bytes(sep_string) || (limit && @buffer.bytesize >= limit)
       buffer_data @options[:block_size]
     end
 
     # calculate how much of the buffer to return
-    length = if idx = @buffer.index(sep_string)
+    length = if idx = find_bytes(sep_string)
       # we found the separator, include it in our output
-      length = idx + sep_string.size
+      length = idx + sep_string.bytesize
     else
       # no separator found (must be EOF). return everything we've got
-      length = @buffer.size
+      length = @buffer.bytesize
+    end
+    if limit && length > limit
+      length = limit
     end
 
-    # increment the position and return the buffer fragment
-    data = @buffer.slice!(0, length)
+    # extract the requested number of byte from the buffer
+    data = pop_bytes(length).force_encoding(@buffer.encoding)
+    # continue retreiving more bytes until we have complete characters
+    while limit && !data.valid_encoding? && (@buffer.bytesize > 0 || !source_eof?)
+      data += pop_bytes(1).force_encoding(@buffer.encoding)
+    end
+    # increment the position
     @pos += data.bytesize
 
     data
@@ -259,6 +282,17 @@ class FilterIO
       else
         data
       end
+    ensure
+      @buffer.force_encoding org_encoding
+    end
+  end
+
+  def find_bytes(str)
+    begin
+      org_encoding = @buffer.encoding
+      @buffer.force_encoding 'ASCII-8BIT'
+
+      @buffer.index(str)
     ensure
       @buffer.force_encoding org_encoding
     end
