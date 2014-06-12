@@ -318,7 +318,13 @@ describe FilterIO do
     buffer = 'abcdef'
     result = io.read(3, buffer)
     expect(result.object_id).to eq buffer.object_id
-    expect(result).to eq 'foo'
+    expect(buffer).to eq 'foo'
+    result = io.read(4, buffer)
+    expect(result.object_id).to eq buffer.object_id
+    expect(buffer).to eq ' bar'
+    result = io.read(3, buffer)
+    expect(result).to eq nil
+    expect(buffer).to eq ''
   end
 
   it 'allows filtering of input with a block' do

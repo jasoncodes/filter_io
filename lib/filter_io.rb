@@ -125,6 +125,7 @@ class FilterIO
       data
     when source_eof?
       # end of file, nothing in the buffer to return
+      buffer.replace empty_string if buffer
       length.nil? ? empty_string : nil
     else
       raise IOError, 'Read error'
