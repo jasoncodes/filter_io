@@ -30,8 +30,10 @@ end
 A common usage of `filter_io` is to normalise line endings before parsing CSV data:
 
 ``` ruby
+require 'csv'
+
 # open source stream
-File.open(filename) do |io|
+File.open(filename, external_encoding: 'UTF-8') do |io|
   # apply filter to stream
   io = FilterIO.new(io) do |data, state|
     # grab another chunk if the last character is a delimiter
@@ -39,10 +41,10 @@ File.open(filename) do |io|
     # normalise line endings to LF
     data.gsub /\r\n|\r|\n/, "\n"
   end
-  
+
   # process resulting stream normally
-  FasterCSV.parse(io) do |row|
-    pp row
+  CSV.parse(io, row_sep: "\n") do |row|
+    p row
   end
 end
 ```
