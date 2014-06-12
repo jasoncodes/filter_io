@@ -4,6 +4,7 @@ require 'spec_helper'
 require 'stringio'
 require 'tempfile'
 require 'zlib'
+require 'csv'
 
 describe FilterIO do
   def matches_reference_io_behaviour(input)
@@ -870,5 +871,20 @@ describe FilterIO do
 
     output.rewind
     expect(output.read).to eq 'TEST'
+  end
+
+  it 'supports CSV' do
+    input = StringIO.new "foo,bar\nbaz"
+
+    filtered_input = FilterIO.new input do |data|
+      data.upcase
+    end
+
+    rows = []
+    CSV.parse(filtered_input) do |row|
+      rows << row
+    end
+
+    expect(rows).to eq [%w[FOO BAR], %w[BAZ]]
   end
 end
