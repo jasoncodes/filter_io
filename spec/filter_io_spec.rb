@@ -36,6 +36,9 @@ describe FilterIO do
     # compare the filtered output against the reference
     results[0].zip(results[1]).each do |expected, actual|
       expect(actual).to eq expected
+      if actual.respond_to? :encoding
+        expect(actual.encoding).to eq expected.encoding
+      end
     end
   end
 
