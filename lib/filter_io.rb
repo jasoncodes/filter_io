@@ -1,8 +1,3 @@
-require 'active_support'
-require 'active_support/core_ext/string'
-require 'active_support/core_ext/array'
-require 'active_support/core_ext/hash'
-
 class FilterIO
   DEFAULT_BLOCK_SIZE = 1024
 
@@ -26,7 +21,11 @@ class FilterIO
     @pos = 0
     @buffer = empty_string
     @buffer_raw = empty_string_raw
-    @options.assert_valid_keys :block_size
+
+    invalid_options = @options.keys - [:block_size]
+    unless invalid_options.empty?
+      raise ArgumentError, "Invalid options: #{invalid_options.join ', '}"
+    end
   end
 
   def pos
