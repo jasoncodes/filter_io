@@ -272,29 +272,30 @@ class FilterIO
     str
   end
 
-  def pop_bytes(count, output_buffer = nil)
+  def with_byte_buffer
     begin
       org_encoding = @buffer.encoding
       @buffer.force_encoding 'ASCII-8BIT'
+      yield
+    ensure
+      @buffer.force_encoding org_encoding
+    end
+  end
+
+  def pop_bytes(count, output_buffer = nil)
+    with_byte_buffer do
       data = @buffer.slice!(0, count)
       if output_buffer
         output_buffer.replace data
       else
         data
       end
-    ensure
-      @buffer.force_encoding org_encoding
     end
   end
 
   def find_bytes(str)
-    begin
-      org_encoding = @buffer.encoding
-      @buffer.force_encoding 'ASCII-8BIT'
-
+    with_byte_buffer do
       @buffer.index(str)
-    ensure
-      @buffer.force_encoding org_encoding
     end
   end
 
