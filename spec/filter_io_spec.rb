@@ -348,6 +348,18 @@ describe FilterIO do
     expect(io.read).to eq expected
   end
 
+  it 'passes false for BOF to the block if stream previously read' do
+    input = StringIO.new 'Test String'
+    expect(input.read(4)).to eq 'Test'
+    io = FilterIO.new(input, :block_size => 4) do |data, state|
+      data = "*#{data}*"
+      data = ">>>#{data}" if state.bof?
+      data = "#{data}<<<" if state.eof?
+      data
+    end
+    expect(io.read).to eq '* Str**ing*<<<'
+  end
+
   it 'passes a copy of the data to block (to prevent mutation bugs)' do
     input = "foobar"
     expected = [
@@ -863,6 +875,18 @@ describe FilterIO do
       data.upcase
     end
     expect(io.read).to eq 'TEST'
+  end
+
+  it 'supports filtering from a pipe with state' do
+    read_io, write_io = IO::pipe
+    write_io.write 'test'
+    write_io.close
+    io = FilterIO.new read_io do |data, state|
+      out = state.bof? ? 'start' : ''
+      out << data.upcase
+      out << 'end' if state.eof?
+    end
+    expect(io.read).to eq 'startTESTend'
   end
 
   it 'supports IO.copy_stream' do

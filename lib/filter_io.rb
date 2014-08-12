@@ -18,6 +18,7 @@ class FilterIO
     @io = io
     @options = options || {}
     @block = block
+    @source_pos = 0
     @pos = 0
     @buffer = empty_string
     @buffer_raw = empty_string_raw
@@ -152,6 +153,7 @@ class FilterIO
       # noop
     when 0
       @io.rewind
+      @source_pos = 0
       @pos = 0
       @buffer = empty_string
       @buffer_raw = empty_string_raw
@@ -305,6 +307,7 @@ class FilterIO
     if !@buffer_raw.empty?
      data = @buffer_raw.slice! 0, @buffer_raw.bytesize
     elsif data = @io.read(block_size)
+      @source_pos += data.bytesize
       data.force_encoding(external_encoding)
     else
       return
@@ -323,7 +326,9 @@ class FilterIO
       end
     rescue NeedMoreData => e
       raise EOFError, 'end of file reached' if @io.eof?
-      data << @io.read(block_size).force_encoding(external_encoding)
+      new_data = @io.read(block_size).force_encoding(external_encoding)
+      data << new_data
+      @source_pos += new_data.bytesize
       retry
     end
 
@@ -355,7 +360,14 @@ class FilterIO
 
     if data && @block
       args = [data.dup]
-      args << BlockState.new(@io.pos == data.length, source_eof?) if @block.arity > 1
+      if @block.arity > 1
+        src_pos = begin
+          @io.pos
+        rescue Errno::ESPIPE
+          @source_pos
+        end
+        args << BlockState.new(src_pos == data.length, source_eof?)
+      end
       data = @block.call(*args)
       raise IOError, 'Block returned nil' if data.nil?
     end
