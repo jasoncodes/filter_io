@@ -103,7 +103,8 @@ class FilterIO
     return '' if length == 0
 
     # fill the buffer up to the fill level (or whole input if length is nil)
-    while !source_eof? && (length.nil? || length > @buffer.bytesize)
+    while (!source_eof? || !@did_first_read) && (length.nil? || length > @buffer.bytesize)
+      @did_first_read = true
       buffer_data @options[:block_size] || length
     end
 
@@ -310,7 +311,7 @@ class FilterIO
       @source_pos += data.bytesize
       data.force_encoding(external_encoding)
     else
-      return
+      data = ""
     end
 
     initial_data_size = data.bytesize

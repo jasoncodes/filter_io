@@ -917,4 +917,27 @@ describe FilterIO do
 
     expect(rows).to eq [%w[FOO BAR], %w[BAZ]]
   end
+
+  it 'calls block when stream empty' do
+    io = FilterIO.new StringIO.new('') do |data, state|
+      out = state.bof? ? 'start' : ''
+      out << data.upcase
+      out << 'end' if state.eof?
+    end
+    expect(io.read).to eq 'startend'
+
+    # multiple reads from empty stream should only trigger block once
+    expect(io.read).to eq ""
+  end
+
+  it 'no longer calls block once the stream is eof' do
+    io = FilterIO.new StringIO.new('foo') do |data, state|
+      out = state.bof? ? 'start' : ''
+      out << data.upcase
+      out << 'end' if state.eof?
+    end
+    expect(io.read).to eq 'startFOOend'
+    expect(io.read).to eq ""
+  end
+
 end
