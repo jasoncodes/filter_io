@@ -45,9 +45,9 @@ describe FilterIO do
 
   it 'works with an empty source' do
     io = FilterIO.new(StringIO.new(''))
-    expect(io.bof?).to be_true
+    expect(io.bof?).to eq true
     io = FilterIO.new(StringIO.new(''))
-    expect(io.eof?).to be_true
+    expect(io.eof?).to eq true
     io = FilterIO.new(StringIO.new(''))
     expect {
       io.readchar
@@ -56,18 +56,18 @@ describe FilterIO do
 
   it 'supports `eof?`' do
     io = FilterIO.new(StringIO.new('x'))
-    expect(io.eof?).to be_false
+    expect(io.eof?).to eq false
     expect(io.readchar.chr).to eq 'x'
-    expect(io.eof?).to be_true
+    expect(io.eof?).to eq true
     expect(io.read).to eq ''
     expect(io.read(8)).to eq nil
   end
 
   it 'supports `bof?`' do
     io = FilterIO.new(StringIO.new('x'))
-    expect(io.bof?).to be_true
+    expect(io.bof?).to eq true
     expect(io.readchar.chr).to eq 'x'
-    expect(io.bof?).to be_false
+    expect(io.bof?).to eq false
   end
 
   it 'can `readchar` with unicode characters' do
@@ -286,22 +286,22 @@ describe FilterIO do
     end
     expect(io.read).to eq io_reference.read
     expect(io.read(4)).to eq io_reference.read(4)
-    expect(io_reference.eof?).to be_true
-    expect(io.eof?).to be_true
+    expect(io_reference.eof?).to eq true
+    expect(io.eof?).to eq true
   end
 
   it 'returns empty from read(0) before EOF' do
     io = FilterIO.new(StringIO.new('foo'))
     expect(io.read(0)).to eq ''
     expect(io.pos).to eq 0
-    expect(io.eof?).to be_false
+    expect(io.eof?).to eq false
   end
 
   it 'returns empty from read(0) at EOF' do
     io = FilterIO.new(StringIO.new(''))
     expect(io.read(0)).to eq ''
     expect(io.pos).to eq 0
-    expect(io.eof?).to be_true
+    expect(io.eof?).to eq true
   end
 
   it 'errors if attempting to read negative' do
