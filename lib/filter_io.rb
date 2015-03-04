@@ -309,7 +309,7 @@ class FilterIO
      data = @buffer_raw.slice! 0, @buffer_raw.bytesize
     elsif data = @io.read(block_size)
       @source_pos += data.bytesize
-      data.force_encoding(external_encoding)
+      data.force_encoding(external_encoding) if external_encoding
     else
       data = ""
     end
