@@ -940,4 +940,21 @@ describe FilterIO do
     expect(io.read).to eq ""
   end
 
+  it 'works with a tmpfile and copy_stream' do
+    src_io = Tempfile.new('filter_io')
+    src_io << "foo"
+    src_io.flush
+    src_io.rewind
+
+    io = FilterIO.new src_io do |data, state|
+      data.upcase
+    end
+
+    dest = StringIO.new
+    IO.copy_stream(io, dest)
+
+    src_io.rewind
+    expect(dest.string).to eq(src_io.read.upcase)
+  end
+
 end
