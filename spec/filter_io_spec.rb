@@ -942,7 +942,7 @@ describe FilterIO do
 
   it 'works with Tempfile and IO.copy_stream' do
     src_io = Tempfile.new('filter_io')
-    src_io << "foo"
+    src_io << 'foo'
     src_io.flush
     src_io.rewind
 
