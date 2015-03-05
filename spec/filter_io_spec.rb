@@ -953,8 +953,7 @@ describe FilterIO do
     dest = StringIO.new
     IO.copy_stream(io, dest)
 
-    src_io.rewind
-    expect(dest.string).to eq(src_io.read.upcase)
+    expect(dest.string).to eq 'FOO'
   end
 
 end
