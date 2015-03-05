@@ -940,7 +940,7 @@ describe FilterIO do
     expect(io.read).to eq ""
   end
 
-  it 'works with a tmpfile and copy_stream' do
+  it 'works with Tempfile and IO.copy_stream' do
     src_io = Tempfile.new('filter_io')
     src_io << "foo"
     src_io.flush
