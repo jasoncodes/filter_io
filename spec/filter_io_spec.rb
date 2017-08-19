@@ -348,6 +348,18 @@ describe FilterIO do
     expect(io.read).to eq expected
   end
 
+  it 'passes true for BOF to the block when stream starts with a UTF-8 BOM' do
+    input = "\xEF\xBB\xBFTest String"
+    expected = ">>>*\xEF\xBB\xBFT**est **Stri**ng*<<<"
+    io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
+      data = "*#{data}*"
+      data = ">>>#{data}" if state.bof?
+      data = "#{data}<<<" if state.eof?
+      data
+    end
+    expect(io.read).to eq expected
+  end
+
   it 'passes false for BOF to the block if stream previously read' do
     input = StringIO.new 'Test String'
     expect(input.read(4)).to eq 'Test'

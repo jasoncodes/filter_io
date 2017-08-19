@@ -367,7 +367,7 @@ class FilterIO
         rescue Errno::ESPIPE
           @source_pos
         end
-        args << BlockState.new(src_pos == data.length, source_eof?)
+        args << BlockState.new(src_pos == data.bytesize, source_eof?)
       end
       data = @block.call(*args)
       raise IOError, 'Block returned nil' if data.nil?
