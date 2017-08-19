@@ -821,11 +821,6 @@ describe FilterIO do
       expect {
         filtered_io.gets
       }.to raise_error IOError
-
-      # closing again should raise an error
-      expect {
-        filtered_io.close
-      }.to raise_error IOError
     end
   end
 
