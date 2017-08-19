@@ -950,5 +950,4 @@ describe FilterIO do
 
     expect(dest.string).to eq 'FOO'
   end
-
 end
