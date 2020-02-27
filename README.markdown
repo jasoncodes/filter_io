@@ -93,7 +93,7 @@ When either `readline`, `gets` or `read(nil)` is called, `filter_io` will proces
 
 Ruby 1.9 has character encoding support can convert between UTF-8, ISO-8859-1, ASCII-8BIT, etc. This is triggered in `IO` by using `:external_encoding` and `:internal_encoding` when opening the stream.
 `filter_io` will use the underlying stream's encoding settings when reading and filtering data. The processing block will be passed data in the internal encoding.
-As per the core `IO` object, if `read` is called with a length (in bytes), the data will be returned in the external encoding.
+As per the core `IO` object, if `read` is called with a length (in bytes), the data will be returned in ASCII-8BIT.
 In summary, everything should Just Work&trade;
 
 ### Notes on Patches/Pull Requests
