@@ -189,11 +189,10 @@ class FilterIO
     end
 
     return nil if eof?
-    return read if sep_string.nil?
 
     paragraph_mode = sep_string == ''
     sep_string = "\n\n" if paragraph_mode
-    sep_string = sep_string.to_s unless sep_string.is_a? String
+    sep_string = sep_string&.to_s unless sep_string.is_a? String
 
     if paragraph_mode
       # consume any leading newlines
@@ -298,7 +297,7 @@ class FilterIO
 
   def find_bytes(str)
     with_byte_buffer do
-      @buffer.index(str)
+      str && @buffer.index(str)
     end
   end
 

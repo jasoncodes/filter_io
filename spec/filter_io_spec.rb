@@ -589,6 +589,20 @@ describe FilterIO do
     # TODO: test zero limit
   end
 
+  it 'supports `gets` with nil separator and a limit' do
+    [
+      "",
+      "x",
+      "foo\nbar\rbaz\n",
+      "abc\rdef\rghi\r",
+      "über",
+    ].each do |input|
+      [1, 2, 3, 4, 10].each do |limit|
+        matches_reference_io_behaviour(input) { |io| io.gets(nil, limit) }
+      end
+    end
+  end
+
   it 'supports `gets` with a separator and a limit' do
     [
       "",
