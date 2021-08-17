@@ -574,7 +574,7 @@ describe FilterIO do
     end
   end
 
-  it 'supports `get` with a limit' do
+  it 'supports `gets` with a limit' do
     [
       "",
       "x",
@@ -606,7 +606,7 @@ describe FilterIO do
     # TODO: test zero limit
   end
 
-  it 'errors when `get` is passed more than two args' do
+  it 'errors when `gets` is passed more than two args' do
     expect {
       FilterIO.new(StringIO.new).gets(1,2,3)
     }.to raise_error ArgumentError
