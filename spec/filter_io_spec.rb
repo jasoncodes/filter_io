@@ -28,6 +28,8 @@ describe FilterIO do
           errors << [e.class, e.message]
         end
         positions << io.pos
+
+        break if results == [""] * 10 && errors == [nil] * 10 && positions == [0] * 10
         raise 'Too many iterations' if results.size > 100
       end
 
@@ -582,11 +584,10 @@ describe FilterIO do
       "abc\rdef\rghi\r",
       "über",
     ].each do |input|
-      [1, 2, 3, 4, 10].each do |limit|
+      [0, 1, 2, 3, 4, 10].each do |limit|
         matches_reference_io_behaviour(input) { |io| io.gets(limit) }
       end
     end
-    # TODO: test zero limit
   end
 
   it 'supports `gets` with nil separator and a limit' do
@@ -597,7 +598,7 @@ describe FilterIO do
       "abc\rdef\rghi\r",
       "über",
     ].each do |input|
-      [1, 2, 3, 4, 10].each do |limit|
+      [0, 1, 2, 3, 4, 10].each do |limit|
         matches_reference_io_behaviour(input) { |io| io.gets(nil, limit) }
       end
     end
@@ -612,12 +613,11 @@ describe FilterIO do
       "über",
     ].each do |input|
       ["\r", "x"].each do |sep_string|
-        [1, 2, 3, 4, 10].each do |limit|
+        [0, 1, 2, 3, 4, 10].each do |limit|
           matches_reference_io_behaviour(input) { |io| io.gets(sep_string, limit) }
         end
       end
     end
-    # TODO: test zero limit
   end
 
   it 'errors when `gets` is passed more than two args' do

@@ -188,6 +188,7 @@ class FilterIO
       raise ArgumentError
     end
 
+    return "" if limit == 0
     return nil if eof?
 
     paragraph_mode = sep_string == ''
