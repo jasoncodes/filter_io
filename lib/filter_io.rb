@@ -325,7 +325,7 @@ class FilterIO
         # and add some more data to the buffer
         raise NeedMoreData
       end
-    rescue NeedMoreData => e
+    rescue NeedMoreData
       raise EOFError, 'end of file reached' if @io.eof?
       new_data = @io.read(block_size).force_encoding(external_encoding)
       data << new_data
