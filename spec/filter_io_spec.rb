@@ -206,7 +206,7 @@ describe FilterIO do
 
   it 'converts ISO-8859-1 to UTF-8 via a block' do
     [1, 2, nil].each do |block_size|
-      expected = "über\nrésumé"
+      # expected: "über\nrésumé"
       with_iso8859_1_test_file 'UTF-8' do |io_raw|
         io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
           if state.bof?
@@ -227,7 +227,7 @@ describe FilterIO do
 
   it 'converts ISO-8859-1 to raw via a block' do
     [1, 2, nil].each do |block_size|
-      expected = "über\nrésumé".encode('ISO-8859-1')
+      # expected: "über\nrésumé".encode('ISO-8859-1')
       with_iso8859_1_test_file 'ISO-8859-1' do |io_raw|
         io = FilterIO.new(io_raw, :block_size => block_size) do |data, state|
           if state.bof?
@@ -465,7 +465,7 @@ describe FilterIO do
 
   it 'can be rewound with block' do
     input = 'abcdefghij'
-    expected = input[1..-1]
+    # expected: input[1..-1]
     io = FilterIO.new(StringIO.new(input), :block_size => 4) do |data, state|
       data = data[1..-1] if state.bof?
       data
