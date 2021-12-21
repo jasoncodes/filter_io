@@ -54,12 +54,11 @@ class FilterIO
   end
 
   def default_encoding
-    unless @default_encoding
+    @default_encoding ||= begin
       c = @io.getc
       @io.ungetc c
-      @default_encoding = c.encoding
+      c.encoding
     end
-    @default_encoding
   end
 
   def internal_encoding
@@ -103,6 +102,7 @@ class FilterIO
     return '' if length == 0
 
     # fill the buffer up to the fill level (or whole input if length is nil)
+    @did_first_read ||= false
     while (!source_eof? || !@did_first_read) && (length.nil? || length > @buffer.bytesize)
       @did_first_read = true
       buffer_data @options[:block_size] || length
