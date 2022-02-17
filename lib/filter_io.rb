@@ -278,7 +278,7 @@ class FilterIO
   def with_byte_buffer
     begin
       org_encoding = @buffer.encoding
-      @buffer.force_encoding 'ASCII-8BIT'
+      @buffer.force_encoding Encoding::BINARY
       yield
     ensure
       @buffer.force_encoding org_encoding
@@ -336,7 +336,7 @@ class FilterIO
     data = [data] unless data.is_a? Array
     raise 'Block must have 1 or 2 values' unless data.size <= 2
     if @buffer.encoding != data[0].encoding
-      if [@buffer, data[0]].any? { |x| x.encoding.to_s == 'ASCII-8BIT' }
+      if [@buffer, data[0]].any? { |x| x.encoding == Encoding::BINARY }
         data[0] = data[0].dup.force_encoding @buffer.encoding
       end
     end
